@@ -1,0 +1,7 @@
+{
+  "name": "ParkPay — Parking Lot Operations & Management System",
+  "description": "Fast vehicle entry, live occupancy tracking, automatic fee calculations, and dependable receipts for busy gate operations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
