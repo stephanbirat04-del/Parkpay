@@ -219,13 +219,8 @@ export function LoginView({ onLogin }: LoginViewProps) {
         </div>
       </div>
 
-      {/* Bottom Status Footer matching Screenshot 1 */}
-      <footer className="px-6 sm:px-12 py-5 flex items-center justify-between text-xs text-neutral-500">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-neutral-200 bg-white shadow-2xs text-[11px] text-neutral-600">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>System operational</span>
-        </div>
-
+      {/* Bottom Footer */}
+      <footer className="px-6 sm:px-12 py-5 flex items-center justify-end text-xs text-neutral-500">
         <div className="text-[11px] text-neutral-400">
           Police Bazaar Parking · Gate 1
         </div>
