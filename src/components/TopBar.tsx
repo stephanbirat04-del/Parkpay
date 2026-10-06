@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
+import { Mail } from 'lucide-react';
 
 interface TopBarProps {
   currentView: string;
+  googleEmail?: string | null;
+  onConnectGoogle?: () => void;
 }
 
-export function TopBar({ currentView }: TopBarProps) {
+export function TopBar({ currentView, googleEmail, onConnectGoogle }: TopBarProps) {
   const [timeStr, setTimeStr] = useState('23 SEP 2026 · 13:42 IST');
   const [useRealTime, setUseRealTime] = useState(false);
 
@@ -47,6 +50,24 @@ export function TopBar({ currentView }: TopBarProps) {
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Gmail status pill */}
+        {onConnectGoogle && (
+          <button
+            onClick={onConnectGoogle}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer border ${
+              googleEmail
+                ? 'bg-red-50/70 border-red-200/80 text-red-900 hover:bg-red-100/60'
+                : 'bg-white border-neutral-200 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
+            }`}
+            title={googleEmail ? `Connected as ${googleEmail}` : 'Connect Gmail to send digital receipts'}
+          >
+            <Mail className="w-3.5 h-3.5 text-red-600" />
+            <span>{googleEmail ? googleEmail : 'Connect Gmail'}</span>
+          </button>
+        )}
+
+        <span className="text-neutral-300 font-light">|</span>
+
         <div className="flex items-center gap-1.5 text-neutral-600 font-medium">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>

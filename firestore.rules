@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Diagnostic connection probe
+    match /test/connection {
+      allow read: if true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Vehicles collection
+    match /vehicles/{vehicleId} {
+      allow read: if true;
+      allow create: if isValidId(vehicleId)
+        && request.resource.data.plateNumber is string
+        && request.resource.data.plateNumber.size() > 0
+        && request.resource.data.plateNumber.size() <= 32
+        && request.resource.data.vehicleType in ['Car', 'SUV', 'Motorcycle', 'Bus', 'Truck']
+        && request.resource.data.status in ['Parked', 'Exited'];
+      allow update: if isValidId(vehicleId)
+        && request.resource.data.plateNumber is string
+        && request.resource.data.status in ['Parked', 'Exited'];
+      allow delete: if isValidId(vehicleId);
+    }
+
+    // Lot Settings collection
+    match /settings/{settingsId} {
+      allow read: if true;
+      allow write: if isValidId(settingsId)
+        && request.resource.data.lotName is string
+        && request.resource.data.hourlyRate is number;
+    }
+
+    // Gate Activities audit log
+    match /gate_activities/{activityId} {
+      allow read: if true;
+      allow create: if isValidId(activityId)
+        && request.resource.data.action in ['entered', 'exited']
+        && request.resource.data.plateNumber is string;
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}

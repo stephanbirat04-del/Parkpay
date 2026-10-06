@@ -1,14 +1,15 @@
 import { VehicleRecord, LotSettings } from '../types';
-import { Printer, X, Download, CheckCircle2 } from 'lucide-react';
+import { Printer, X, Download, CheckCircle2, Mail } from 'lucide-react';
 import { formatDateIST, formatTimeIST } from '../utils/fee';
 
 interface ReceiptModalProps {
   vehicle: VehicleRecord | null;
   settings: LotSettings;
   onClose: () => void;
+  onEmailReceipt?: (vehicle: VehicleRecord) => void;
 }
 
-export function ReceiptModal({ vehicle, settings, onClose }: ReceiptModalProps) {
+export function ReceiptModal({ vehicle, settings, onClose, onEmailReceipt }: ReceiptModalProps) {
   if (!vehicle) return null;
 
   const handlePrint = () => {
@@ -164,14 +165,26 @@ Cashier: ${vehicle.loggedBy}
         </div>
 
         {/* Modal Action Buttons */}
-        <div className="p-4 bg-neutral-50 border-t border-neutral-200 flex items-center justify-between gap-2">
-          <button
-            onClick={handleDownload}
-            className="px-3 py-2 text-xs font-medium text-neutral-700 hover:text-neutral-900 hover:bg-neutral-200/60 rounded-md border border-neutral-300 flex items-center gap-1.5 transition-colors cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Download text</span>
-          </button>
+        <div className="p-4 bg-neutral-50 border-t border-neutral-200 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={handleDownload}
+              className="px-2.5 py-2 text-xs font-medium text-neutral-700 hover:text-neutral-900 hover:bg-neutral-200/60 rounded-md border border-neutral-300 flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Text</span>
+            </button>
+
+            {onEmailReceipt && (
+              <button
+                onClick={() => onEmailReceipt(vehicle)}
+                className="px-2.5 py-2 text-xs font-semibold text-neutral-800 hover:text-red-700 hover:bg-red-50 rounded-md border border-neutral-300 hover:border-red-300 flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Mail className="w-3.5 h-3.5 text-red-600" />
+                <span>Gmail</span>
+              </button>
+            )}
+          </div>
 
           <div className="flex items-center gap-2">
             <button
@@ -182,7 +195,7 @@ Cashier: ${vehicle.loggedBy}
             </button>
             <button
               onClick={handlePrint}
-              className="px-4 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-md shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-3.5 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-md shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" />
               <span>Print receipt</span>

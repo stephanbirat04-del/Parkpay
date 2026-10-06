@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   VehicleRecord,
   VehicleType,
@@ -20,11 +20,24 @@ import {
 } from './utils/storage';
 import { INITIAL_STAFF } from './utils/initialData';
 import { calculateFee, generateReceiptNumber, formatTimeIST } from './utils/fee';
+import {
+  seedFirestoreIfEmpty,
+  subscribeToVehicles,
+  subscribeToSettings,
+  subscribeToGateActivities,
+  createVehicleInFirestore,
+  updateVehicleInFirestore,
+  saveSettingsInFirestore,
+  createGateActivityInFirestore,
+} from './firebase';
 
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
 import { ExitModal } from './components/ExitModal';
 import { ReceiptModal } from './components/ReceiptModal';
+import { GmailEmailModal } from './components/GmailEmailModal';
+import { signInWithGoogle, getAccessToken } from './services/gmail';
+import { auth } from './firebase';
 
 import { LoginView } from './views/LoginView';
 import { DashboardView } from './views/DashboardView';
@@ -47,12 +60,68 @@ export default function App() {
   // Modals state
   const [vehicleToExit, setVehicleToExit] = useState<VehicleRecord | null>(null);
   const [receiptVehicle, setReceiptVehicle] = useState<VehicleRecord | null>(null);
+  const [emailVehicle, setEmailVehicle] = useState<VehicleRecord | null>(null);
+  const [googleEmail, setGoogleEmail] = useState<string | null>(() => auth.currentUser?.email || null);
   
   // Recent exit banner vehicle (matching screenshot 3)
   const [recentExitVehicle, setRecentExitVehicle] = useState<VehicleRecord | null>(() => {
     const exited = loadVehicles().filter((v) => v.status === 'Exited');
     return exited.length > 0 ? exited[0] : null;
   });
+
+  // Check Google auth state on mount
+  useEffect(() => {
+    getAccessToken().then((token) => {
+      if (token && auth.currentUser) {
+        setGoogleEmail(auth.currentUser.email);
+      }
+    });
+  }, []);
+
+  const handleConnectGoogle = async () => {
+    try {
+      const result = await signInWithGoogle();
+      if (result.user) {
+        setGoogleEmail(result.user.email);
+      }
+    } catch (err) {
+      console.error('Failed to connect Google account:', err);
+    }
+  };
+
+  // Sync with Firestore in real-time
+  useEffect(() => {
+    // Seed initial data if Firestore is empty
+    seedFirestoreIfEmpty();
+
+    // Subscribe to Firestore collections
+    const unsubVehicles = subscribeToVehicles((firestoreVehicles) => {
+      if (firestoreVehicles.length > 0) {
+        setVehicles(firestoreVehicles);
+        saveVehicles(firestoreVehicles);
+        const latestExit = firestoreVehicles.find((v) => v.status === 'Exited');
+        if (latestExit) setRecentExitVehicle(latestExit);
+      }
+    });
+
+    const unsubSettings = subscribeToSettings((firestoreSettings) => {
+      setSettings(firestoreSettings);
+      saveSettings(firestoreSettings);
+    });
+
+    const unsubActivity = subscribeToGateActivities((firestoreActivity) => {
+      if (firestoreActivity.length > 0) {
+        setGateActivity(firestoreActivity);
+        saveGateActivity(firestoreActivity);
+      }
+    });
+
+    return () => {
+      unsubVehicles();
+      unsubSettings();
+      unsubActivity();
+    };
+  }, []);
 
   // Auth handlers
   const handleLogin = (user: StaffUser) => {
@@ -66,7 +135,7 @@ export default function App() {
   };
 
   // Data operations
-  const handleLogEntry = (plate: string, phone: string, type: VehicleType) => {
+  const handleLogEntry = async (plate: string, phone: string, type: VehicleType) => {
     const nowIso = new Date().toISOString();
     const newRecord: VehicleRecord = {
       id: `v-${Date.now()}`,
@@ -99,13 +168,21 @@ export default function App() {
     const updatedActivity = [newActivity, ...gateActivity];
     setGateActivity(updatedActivity);
     saveGateActivity(updatedActivity);
+
+    // Persist to Cloud Firestore
+    try {
+      await createVehicleInFirestore(newRecord);
+      await createGateActivityInFirestore(newActivity);
+    } catch (e) {
+      console.error('Failed to sync entry to Firestore:', e);
+    }
   };
 
   const handleProcessExit = (vehicle: VehicleRecord) => {
     setVehicleToExit(vehicle);
   };
 
-  const handleConfirmExit = (
+  const handleConfirmExit = async (
     vehicle: VehicleRecord,
     paymentMethod: PaymentMethod,
     paymentStatus: PaymentStatus,
@@ -160,19 +237,45 @@ export default function App() {
     if (openReceipt) {
       setReceiptVehicle(updatedVehicle);
     }
+
+    // Persist to Cloud Firestore
+    try {
+      await updateVehicleInFirestore(updatedVehicle);
+      await createGateActivityInFirestore(newActivity);
+    } catch (e) {
+      console.error('Failed to sync exit to Firestore:', e);
+    }
   };
 
-  const handleMarkPaid = (vehicleId: string) => {
+  const handleMarkPaid = async (vehicleId: string) => {
+    const target = vehicles.find((v) => v.id === vehicleId);
     const updatedVehicles = vehicles.map((v) =>
       v.id === vehicleId ? { ...v, paymentStatus: 'Paid' as const, paymentMethod: 'Cash' as const } : v
     );
     setVehicles(updatedVehicles);
     saveVehicles(updatedVehicles);
+
+    if (target) {
+      try {
+        await updateVehicleInFirestore({
+          ...target,
+          paymentStatus: 'Paid',
+          paymentMethod: 'Cash',
+        });
+      } catch (e) {
+        console.error('Failed to sync paid status to Firestore:', e);
+      }
+    }
   };
 
-  const handleSaveSettings = (newSettings: LotSettings) => {
+  const handleSaveSettings = async (newSettings: LotSettings) => {
     setSettings(newSettings);
     saveSettings(newSettings);
+    try {
+      await saveSettingsInFirestore(newSettings);
+    } catch (e) {
+      console.error('Failed to sync settings to Firestore:', e);
+    }
   };
 
   // If unauthenticated, show Staff sign-in view matching Screen 1
@@ -193,7 +296,11 @@ export default function App() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Top bar with Breadcrumbs and Live Synced Timestamp */}
-        <TopBar currentView={currentView} />
+        <TopBar
+          currentView={currentView}
+          googleEmail={googleEmail}
+          onConnectGoogle={handleConnectGoogle}
+        />
 
         {/* Viewport content */}
         <main className="flex-1 overflow-y-auto p-6 md:p-8">
@@ -222,6 +329,7 @@ export default function App() {
               vehicles={vehicles}
               onPrintReceipt={(v) => setReceiptVehicle(v)}
               onMarkPaid={handleMarkPaid}
+              onEmailReceipt={(v) => setEmailVehicle(v)}
             />
           )}
 
@@ -259,8 +367,20 @@ export default function App() {
           vehicle={receiptVehicle}
           settings={settings}
           onClose={() => setReceiptVehicle(null)}
+          onEmailReceipt={(v) => {
+            setEmailVehicle(v);
+          }}
         />
       )}
+
+      {/* Gmail Digital Receipt Modal with Confirmation Flow */}
+      <GmailEmailModal
+        vehicle={emailVehicle}
+        lotSettings={settings}
+        isOpen={Boolean(emailVehicle)}
+        onClose={() => setEmailVehicle(null)}
+        senderName={currentUser?.name || 'Gate Operator'}
+      />
     </div>
   );
 }

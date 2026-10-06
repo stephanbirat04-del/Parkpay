@@ -2,15 +2,16 @@ import { useState, useMemo } from 'react';
 import { VehicleRecord, ParkingStatus, PaymentStatus } from '../types';
 import { formatTimeIST } from '../utils/fee';
 import { exportVehiclesToCSV } from '../utils/storage';
-import { Search, Download, Printer, Filter, Check, CheckCircle2, FileSpreadsheet } from 'lucide-react';
+import { Search, Download, Printer, Filter, Check, CheckCircle2, FileSpreadsheet, Mail } from 'lucide-react';
 
 interface HistoryViewProps {
   vehicles: VehicleRecord[];
   onPrintReceipt: (vehicle: VehicleRecord) => void;
   onMarkPaid: (vehicleId: string) => void;
+  onEmailReceipt?: (vehicle: VehicleRecord) => void;
 }
 
-export function HistoryView({ vehicles, onPrintReceipt, onMarkPaid }: HistoryViewProps) {
+export function HistoryView({ vehicles, onPrintReceipt, onMarkPaid, onEmailReceipt }: HistoryViewProps) {
   const [plateQuery, setPlateQuery] = useState('ML05');
   const [statusFilter, setStatusFilter] = useState<'all' | ParkingStatus>('all');
   const [fromDate, setFromDate] = useState('2026-09-20');
@@ -303,13 +304,25 @@ export function HistoryView({ vehicles, onPrintReceipt, onMarkPaid }: HistoryVie
                       )}
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => onPrintReceipt(v)}
-                        className="px-2.5 py-1 text-[11px] font-medium text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100 rounded border border-neutral-200 transition-colors cursor-pointer inline-flex items-center gap-1"
-                      >
-                        <Printer className="w-3 h-3" />
-                        <span>Print</span>
-                      </button>
+                      <div className="inline-flex items-center gap-1.5 justify-end">
+                        {onEmailReceipt && (
+                          <button
+                            onClick={() => onEmailReceipt(v)}
+                            title="Send receipt via Gmail"
+                            className="px-2 py-1 text-[11px] font-medium text-neutral-700 hover:text-red-700 hover:bg-red-50 rounded border border-neutral-200 hover:border-red-200 transition-colors cursor-pointer inline-flex items-center gap-1"
+                          >
+                            <Mail className="w-3 h-3 text-red-600" />
+                            <span>Email</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={() => onPrintReceipt(v)}
+                          className="px-2.5 py-1 text-[11px] font-medium text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100 rounded border border-neutral-200 transition-colors cursor-pointer inline-flex items-center gap-1"
+                        >
+                          <Printer className="w-3 h-3" />
+                          <span>Print</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

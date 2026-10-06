@@ -166,11 +166,53 @@ export function LoginView({ onLogin }: LoginViewProps) {
                 type="submit"
                 className="w-full py-3 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-lg shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2 mt-2"
               >
-                <span>Sign in</span>
+                <span>Sign in with Staff ID</span>
+              </button>
+
+              <div className="relative my-4 flex items-center justify-center">
+                <div className="border-t border-neutral-200 w-full"></div>
+                <span className="bg-white px-3 text-[11px] text-neutral-400 font-medium uppercase tracking-wider absolute">
+                  or
+                </span>
+              </div>
+
+              {/* Official Google Sign-In button per Workspace Skill */}
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    setError('');
+                    const { signInWithGoogle } = await import('../services/gmail');
+                    const result = await signInWithGoogle();
+                    if (result?.user) {
+                      const emailVal = result.user.email || 'operator@parkpay.in';
+                      const isAdmin = emailVal.toLowerCase().includes('admin') || emailVal === 'stephanbirat04@gmail.com';
+                      onLogin({
+                        id: result.user.uid,
+                        name: result.user.displayName || (isAdmin ? 'R. Kharkongor' : 'Ananya Sharma'),
+                        email: emailVal,
+                        role: isAdmin ? 'admin' : 'staff',
+                        title: isAdmin ? 'Lot Administrator (Google)' : 'Lot Operator (Google)',
+                        gate: 'Gate 1',
+                      });
+                    }
+                  } catch (err: any) {
+                    setError(err?.message || 'Google sign-in failed. Please try again.');
+                  }
+                }}
+                className="w-full py-2.5 px-4 bg-white hover:bg-neutral-50 border border-neutral-300 rounded-lg shadow-2xs font-semibold text-xs text-neutral-800 flex items-center justify-center gap-2.5 transition-colors cursor-pointer"
+              >
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 48 48">
+                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                </svg>
+                <span>Sign in with Google</span>
               </button>
 
               <p className="text-[11px] text-neutral-400 text-center pt-2 leading-relaxed">
-                No sign up · Contact your lot administrator for access.
+                Connect your Google account for automated Gmail digital receipts.
               </p>
             </form>
           </div>

@@ -1,0 +1,162 @@
+{
+  "entities": {
+    "vehicle": {
+      "title": "Vehicle Record",
+      "description": "Represents a vehicle parked or previously parked in the lot.",
+      "type": "object",
+      "properties": {
+        "plateNumber": {
+          "type": "string",
+          "description": "Standard license plate number.",
+          "maxLength": 32
+        },
+        "vehicleType": {
+          "type": "string",
+          "description": "Category of vehicle.",
+          "enum": ["Car", "SUV", "Motorcycle", "Bus", "Truck"]
+        },
+        "ownerPhone": {
+          "type": "string",
+          "description": "Phone number for digital receipts.",
+          "maxLength": 32
+        },
+        "entryTime": {
+          "type": "string",
+          "description": "ISO 8601 timestamp of entry."
+        },
+        "exitTime": {
+          "type": "string",
+          "description": "ISO 8601 timestamp of exit."
+        },
+        "durationMinutes": {
+          "type": "number",
+          "description": "Total parked duration in minutes."
+        },
+        "fee": {
+          "type": "number",
+          "description": "Calculated or paid parking fee in INR."
+        },
+        "status": {
+          "type": "string",
+          "description": "Current parking status.",
+          "enum": ["Parked", "Exited"]
+        },
+        "paymentStatus": {
+          "type": "string",
+          "description": "Payment settlement status.",
+          "enum": ["Paid", "Unpaid"]
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "Payment instrument.",
+          "enum": ["Cash", "UPI", "Card"]
+        },
+        "receiptNumber": {
+          "type": "string",
+          "description": "Unique receipt identifier.",
+          "maxLength": 64
+        },
+        "loggedBy": {
+          "type": "string",
+          "description": "Staff member or system operator.",
+          "maxLength": 128
+        },
+        "rateAppliedAtEntry": {
+          "type": "number",
+          "description": "Base rate applied at entry time."
+        },
+        "graceMinutesAtEntry": {
+          "type": "number",
+          "description": "Grace minutes policy at entry."
+        },
+        "minimumChargeAtEntry": {
+          "type": "number",
+          "description": "Minimum fee policy at entry."
+        }
+      },
+      "required": ["plateNumber", "vehicleType", "entryTime", "fee", "status", "paymentStatus", "loggedBy"]
+    },
+    "settings": {
+      "title": "Lot Settings",
+      "description": "Global parking lot operating settings and rate configuration.",
+      "type": "object",
+      "properties": {
+        "lotName": {
+          "type": "string",
+          "description": "Name of the parking facility.",
+          "maxLength": 128
+        },
+        "hourlyRate": {
+          "type": "number",
+          "description": "Base rate per hour in INR."
+        },
+        "minimumCharge": {
+          "type": "number",
+          "description": "Minimum billable charge in INR."
+        },
+        "gracePeriodMinutes": {
+          "type": "number",
+          "description": "Initial free grace period in minutes."
+        },
+        "lastUpdatedBy": {
+          "type": "string",
+          "description": "Name of the administrator who made changes.",
+          "maxLength": 128
+        },
+        "lastUpdatedAt": {
+          "type": "string",
+          "description": "Display timestamp of latest modification.",
+          "maxLength": 128
+        }
+      },
+      "required": ["lotName", "hourlyRate", "minimumCharge", "gracePeriodMinutes"]
+    },
+    "gateActivity": {
+      "title": "Gate Activity Entry",
+      "description": "Real-time audit log of gate transactions.",
+      "type": "object",
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "description": "ISO timestamp of the activity."
+        },
+        "timeFormatted": {
+          "type": "string",
+          "description": "Formatted time string (e.g. 13:45)."
+        },
+        "plateNumber": {
+          "type": "string",
+          "description": "License plate associated with the action."
+        },
+        "action": {
+          "type": "string",
+          "description": "Type of event.",
+          "enum": ["entered", "exited"]
+        },
+        "vehicleType": {
+          "type": "string",
+          "description": "Vehicle type classification."
+        },
+        "fee": {
+          "type": "number",
+          "description": "Fee collected on exit, if applicable."
+        }
+      },
+      "required": ["timestamp", "plateNumber", "action", "vehicleType"]
+    }
+  },
+  "firestore": {
+    "/vehicles/{vehicleId}": {
+      "schema": "vehicle",
+      "description": "Parking sessions for all active and historical vehicles."
+    },
+    "/settings/{settingsId}": {
+      "schema": "settings",
+      "description": "Lot rates and configuration settings."
+    },
+    "/gate_activities/{activityId}": {
+      "schema": "gateActivity",
+      "description": "Live stream of entry and exit operations."
+    }
+  }
+}
