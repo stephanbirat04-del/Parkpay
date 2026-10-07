@@ -1,5 +1,6 @@
 import { StaffUser } from '../types';
 import { LayoutDashboard, Car, History, Settings, LogOut } from 'lucide-react';
+import { ParkPayLogo } from './ParkPayLogo';
 
 interface SidebarProps {
   currentView: 'dashboard' | 'active' | 'history' | 'settings';
@@ -28,14 +29,8 @@ export function Sidebar({
       {/* Brand & Nav */}
       <div>
         {/* Brand Header */}
-        <div className="p-5 border-b border-neutral-100 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-emerald-700 text-white font-bold flex items-center justify-center text-base tracking-tight shadow-xs">
-            P
-          </div>
-          <div>
-            <h1 className="font-bold text-neutral-900 text-base leading-tight tracking-tight">ParkPay</h1>
-            <p className="text-[11px] text-neutral-400 font-medium">Gate Operations</p>
-          </div>
+        <div className="p-5 border-b border-neutral-100 flex items-center">
+          <ParkPayLogo size="md" subtitleText="Gate Operations" />
         </div>
 
         {/* Navigation list */}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Mail } from 'lucide-react';
+import { ParkPayLogoMark } from './ParkPayLogo';
 
 interface TopBarProps {
   currentView: string;
@@ -42,7 +43,8 @@ export function TopBar({ currentView, googleEmail, onConnectGoogle }: TopBarProp
   return (
     <header className="h-12 border-b border-neutral-200/80 bg-[#FAFBF9] px-6 flex items-center justify-between text-xs text-neutral-500 shrink-0 select-none">
       <div className="flex items-center gap-2 font-medium tracking-tight">
-        <span className="text-neutral-700">ParkPay</span>
+        <ParkPayLogoMark className="w-4 h-4" />
+        <span className="text-neutral-900 font-bold">ParkPay</span>
         <span className="text-neutral-300">/</span>
         <span className="text-neutral-500">Day Shift</span>
         <span className="text-neutral-300">/</span>

@@ -1,6 +1,7 @@
 import { VehicleRecord, LotSettings } from '../types';
 import { Printer, X, Download, CheckCircle2, Mail } from 'lucide-react';
 import { formatDateIST, formatTimeIST } from '../utils/fee';
+import { ParkPayLogoMark } from './ParkPayLogo';
 
 interface ReceiptModalProps {
   vehicle: VehicleRecord | null;
@@ -71,6 +72,9 @@ Cashier: ${vehicle.loggedBy}
           >
             {/* Thermal Header */}
             <div className="text-center space-y-1 pb-3 border-b border-dashed border-neutral-300">
+              <div className="flex justify-center pb-1">
+                <ParkPayLogoMark className="w-6 h-6" />
+              </div>
               <div className="font-bold text-sm text-neutral-900 tracking-wider">PARKPAY GATE PASS</div>
               <div className="text-[11px] font-sans text-neutral-600 font-medium">{settings.lotName}</div>
               <div className="text-[10px] text-neutral-400">GSTIN / TAX: 17AABCP1234F1Z8</div>

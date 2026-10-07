@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StaffUser } from '../types';
 import { INITIAL_STAFF } from '../utils/initialData';
 import { ArrowRight, ShieldCheck } from 'lucide-react';
+import { ParkPayLogo, ParkPayLogoMark } from '../components/ParkPayLogo';
 
 interface LoginViewProps {
   onLogin: (user: StaffUser) => void;
@@ -46,7 +47,8 @@ export function LoginView({ onLogin }: LoginViewProps) {
       {/* Top Header Breadcrumb matching Screenshot 1 */}
       <header className="h-12 px-6 sm:px-10 border-b border-neutral-200/80 bg-[#FAFBF9] flex items-center justify-between text-xs text-neutral-500">
         <div className="flex items-center gap-2 font-medium tracking-tight">
-          <span className="text-neutral-700">ParkPay</span>
+          <ParkPayLogoMark className="w-4 h-4" />
+          <span className="text-neutral-900 font-bold">ParkPay</span>
           <span className="text-neutral-300">/</span>
           <span className="text-neutral-500">Day Shift</span>
           <span className="text-neutral-300">/</span>
@@ -59,11 +61,8 @@ export function LoginView({ onLogin }: LoginViewProps) {
         {/* Left Column: Brand & Hero Value Proposition */}
         <div className="lg:col-span-7 space-y-7">
           {/* Brand Logo & Wordmark */}
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-emerald-700 text-white font-bold flex items-center justify-center text-lg shadow-xs">
-              P
-            </div>
-            <span className="text-2xl font-bold text-neutral-900 tracking-tight">ParkPay</span>
+          <div className="flex items-center">
+            <ParkPayLogo size="lg" showSubtitle={false} />
           </div>
 
           {/* Large Hero Headline */}
