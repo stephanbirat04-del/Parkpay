@@ -1,4 +1,4 @@
-import { LotSettings, StaffUser, VehicleRecord, GateActivityItem } from '../types';
+import { LotSettings, StaffUser, VehicleRecord, GateActivityItem, OperatorSession } from '../types';
 
 export const INITIAL_STAFF: StaffUser[] = [
   {
@@ -400,4 +400,77 @@ export const EXITS_BY_HOUR = [
   { hour: '16', exits: 12 },
   { hour: '18', exits: 9 },
   { hour: '20', exits: 6 },
+];
+
+export const INITIAL_OPERATOR_SESSIONS: OperatorSession[] = [
+  {
+    id: 'sess-today-1',
+    operatorId: 'staff-1',
+    operatorName: 'Ananya Sharma',
+    operatorEmail: 'operator@parkpay.in',
+    operatorRole: 'staff',
+    gate: 'Gate 1',
+    loginTime: `${today}T08:00:00.000Z`,
+    logoutTime: null,
+    durationMinutes: 342,
+    status: 'active',
+    vehiclesProcessed: 42,
+    notes: 'Morning shift gate operations',
+  },
+  {
+    id: 'sess-prev-1',
+    operatorId: 'staff-1',
+    operatorName: 'Ananya Sharma',
+    operatorEmail: 'operator@parkpay.in',
+    operatorRole: 'staff',
+    gate: 'Gate 1',
+    loginTime: '2026-09-22T08:00:00.000Z',
+    logoutTime: '2026-09-22T17:00:00.000Z',
+    durationMinutes: 540,
+    status: 'completed',
+    vehiclesProcessed: 84,
+    notes: 'Regular full day shift',
+  },
+  {
+    id: 'sess-prev-2',
+    operatorId: 'staff-2',
+    operatorName: 'R. Kharkongor',
+    operatorEmail: 'admin@parkpay.in',
+    operatorRole: 'admin',
+    gate: 'HQ Control',
+    loginTime: '2026-09-22T09:15:00.000Z',
+    logoutTime: '2026-09-22T14:45:00.000Z',
+    durationMinutes: 330,
+    status: 'completed',
+    vehiclesProcessed: 18,
+    notes: 'Rate audit and pricing config inspection',
+  },
+  {
+    id: 'sess-prev-3',
+    operatorId: 'staff-1',
+    operatorName: 'Ananya Sharma',
+    operatorEmail: 'operator@parkpay.in',
+    operatorRole: 'staff',
+    gate: 'Gate 1',
+    loginTime: '2026-09-21T08:15:00.000Z',
+    logoutTime: '2026-09-21T16:45:00.000Z',
+    durationMinutes: 510,
+    status: 'completed',
+    vehiclesProcessed: 76,
+    notes: 'Gate 1 fast-pass processing',
+  },
+  {
+    id: 'sess-prev-4',
+    operatorId: 'staff-2',
+    operatorName: 'R. Kharkongor',
+    operatorEmail: 'admin@parkpay.in',
+    operatorRole: 'admin',
+    gate: 'HQ Control',
+    loginTime: '2026-09-20T08:30:00.000Z',
+    logoutTime: '2026-09-20T17:30:00.000Z',
+    durationMinutes: 540,
+    status: 'completed',
+    vehiclesProcessed: 91,
+    notes: 'Weekend peak operations supervisor',
+  },
 ];

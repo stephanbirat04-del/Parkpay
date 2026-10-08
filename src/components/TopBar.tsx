@@ -1,13 +1,24 @@
 import { useState, useEffect } from 'react';
-import { Mail } from 'lucide-react';
+import { Mail, Clock } from 'lucide-react';
+import { ParkPayLogoMark } from './ParkPayLogo';
+import { OperatorSession } from '../types';
+import { formatTimeIST } from '../utils/fee';
 
 interface TopBarProps {
   currentView: string;
   googleEmail?: string | null;
   onConnectGoogle?: () => void;
+  currentSession?: OperatorSession | null;
+  onOpenShiftDetails?: () => void;
 }
 
-export function TopBar({ currentView, googleEmail, onConnectGoogle }: TopBarProps) {
+export function TopBar({
+  currentView,
+  googleEmail,
+  onConnectGoogle,
+  currentSession,
+  onOpenShiftDetails,
+}: TopBarProps) {
   const [timeStr, setTimeStr] = useState('23 SEP 2026 · 13:42 IST');
   const [useRealTime, setUseRealTime] = useState(false);
 
@@ -42,9 +53,21 @@ export function TopBar({ currentView, googleEmail, onConnectGoogle }: TopBarProp
   return (
     <header className="h-12 border-b border-neutral-200/80 bg-[#FAFBF9] px-6 flex items-center justify-between text-xs text-neutral-500 shrink-0 select-none">
       <div className="flex items-center gap-2 font-medium tracking-tight">
-        <span className="text-neutral-700">ParkPay</span>
+        <ParkPayLogoMark className="w-4 h-4" />
+        <span className="text-neutral-900 font-bold">ParkPay</span>
         <span className="text-neutral-300">/</span>
         <span className="text-neutral-500">Day Shift</span>
+        {currentSession?.loginTime && (
+          <button
+            type="button"
+            onClick={onOpenShiftDetails}
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-[10px] text-emerald-800 font-semibold border border-emerald-200/60 hover:bg-emerald-100/70 transition-colors cursor-pointer"
+            title="Click to view shift login/logout details"
+          >
+            <Clock className="w-3 h-3 text-emerald-600" />
+            <span>In at {formatTimeIST(currentSession.loginTime)}</span>
+          </button>
+        )}
         <span className="text-neutral-300">/</span>
         <span className="text-emerald-800 font-semibold">{viewLabels[currentView] || 'Active'}</span>
       </div>

@@ -143,6 +143,26 @@
         }
       },
       "required": ["timestamp", "plateNumber", "action", "vehicleType"]
+    },
+    "operatorSession": {
+      "title": "Operator Session",
+      "description": "Staff shift login and logout times, duration, gate assignment, and active status.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "operatorId": { "type": "string" },
+        "operatorName": { "type": "string" },
+        "operatorEmail": { "type": "string" },
+        "operatorRole": { "type": "string", "enum": ["staff", "admin"] },
+        "gate": { "type": "string" },
+        "loginTime": { "type": "string", "description": "ISO timestamp of operator sign in." },
+        "logoutTime": { "type": "string", "description": "ISO timestamp of operator sign out." },
+        "durationMinutes": { "type": "number", "description": "Shift duration in minutes." },
+        "status": { "type": "string", "enum": ["active", "completed"] },
+        "vehiclesProcessed": { "type": "number" },
+        "notes": { "type": "string" }
+      },
+      "required": ["operatorName", "loginTime", "status"]
     }
   },
   "firestore": {
@@ -157,6 +177,10 @@
     "/gate_activities/{activityId}": {
       "schema": "gateActivity",
       "description": "Live stream of entry and exit operations."
+    },
+    "/operator_sessions/{sessionId}": {
+      "schema": "operatorSession",
+      "description": "Historical and live operator shift login and logout times."
     }
   }
 }

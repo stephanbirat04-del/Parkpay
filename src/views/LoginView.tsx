@@ -1,15 +1,17 @@
 import { useState } from 'react';
-import { StaffUser } from '../types';
+import { StaffUser, OperatorSession } from '../types';
 import { INITIAL_STAFF } from '../utils/initialData';
-import { ArrowRight, ShieldCheck } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Clock, LogOut } from 'lucide-react';
+import { ParkPayLogo, ParkPayLogoMark } from '../components/ParkPayLogo';
+import { formatTimeIST, formatShiftDuration } from '../utils/fee';
 import { signInWithGoogle } from '../services/gmail';
-import { ParkPayLogo } from '../components/ParkPayLogo';
 
 interface LoginViewProps {
   onLogin: (user: StaffUser) => void;
+  lastSession?: OperatorSession | null;
 }
 
-export function LoginView({ onLogin }: LoginViewProps) {
+export function LoginView({ onLogin, lastSession }: LoginViewProps) {
   const [email, setEmail] = useState('operator@parkpay.in');
   const [password, setPassword] = useState('••••••••••');
   const [error, setError] = useState('');
@@ -48,7 +50,8 @@ export function LoginView({ onLogin }: LoginViewProps) {
       {/* Top Header Breadcrumb matching Screenshot 1 */}
       <header className="h-12 px-6 sm:px-10 border-b border-neutral-200/80 bg-[#FAFBF9] flex items-center justify-between text-xs text-neutral-500">
         <div className="flex items-center gap-2 font-medium tracking-tight">
-          <span className="text-neutral-700">ParkPay</span>
+          <ParkPayLogoMark className="w-4 h-4" />
+          <span className="text-neutral-900 font-bold">ParkPay</span>
           <span className="text-neutral-300">/</span>
           <span className="text-neutral-500">Day Shift</span>
           <span className="text-neutral-300">/</span>
@@ -61,7 +64,12 @@ export function LoginView({ onLogin }: LoginViewProps) {
         {/* Left Column: Brand & Hero Value Proposition */}
         <div className="lg:col-span-7 space-y-7">
           {/* Brand Logo & Wordmark */}
-          <ParkPayLogo size="lg" />
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-emerald-700 text-white font-bold flex items-center justify-center text-lg shadow-xs">
+              P
+            </div>
+            <span className="text-2xl font-bold text-neutral-900 tracking-tight">ParkPay</span>
+          </div>
 
           {/* Large Hero Headline */}
           <div className="space-y-4 max-w-lg">
@@ -127,6 +135,47 @@ export function LoginView({ onLogin }: LoginViewProps) {
             {error && (
               <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">
                 {error}
+              </div>
+            )}
+
+            {lastSession && lastSession.logoutTime && (
+              <div className="mb-5 p-3.5 rounded-xl bg-[#FAFBF9] border border-neutral-200/90 text-xs text-neutral-700 space-y-1.5 shadow-2xs">
+                <div className="flex items-center justify-between font-bold text-neutral-800 text-[10px] uppercase tracking-wider">
+                  <span className="flex items-center gap-1.5 text-emerald-800">
+                    <Clock className="w-3.5 h-3.5 text-emerald-700" />
+                    Last Operator Shift Summary
+                  </span>
+                  <span className="text-[10px] text-neutral-500 font-semibold px-1.5 py-0.5 bg-neutral-200/70 rounded">
+                    Handover
+                  </span>
+                </div>
+                <div className="text-neutral-900 font-bold text-xs">
+                  {lastSession.operatorName} · {lastSession.gate}
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[11px] text-neutral-600 pt-1.5 border-t border-neutral-200/60 font-mono">
+                  <div>
+                    <span className="text-[9px] text-neutral-400 font-sans uppercase font-bold block">
+                      Login Time
+                    </span>
+                    <span className="text-neutral-800 font-semibold">
+                      {formatTimeIST(lastSession.loginTime)} IST
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-neutral-400 font-sans uppercase font-bold block">
+                      Log Out Time
+                    </span>
+                    <span className="text-neutral-800 font-semibold">
+                      {formatTimeIST(lastSession.logoutTime)} IST
+                    </span>
+                  </div>
+                </div>
+                {lastSession.durationMinutes !== undefined && (
+                  <div className="text-[10px] text-neutral-500 pt-0.5 flex items-center justify-between">
+                    <span>Duration: {formatShiftDuration(lastSession.durationMinutes)}</span>
+                    <span>{lastSession.vehiclesProcessed || 0} vehicles logged</span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -199,10 +248,10 @@ export function LoginView({ onLogin }: LoginViewProps) {
                 className="w-full py-2.5 px-4 bg-white hover:bg-neutral-50 border border-neutral-300 rounded-lg shadow-2xs font-semibold text-xs text-neutral-800 flex items-center justify-center gap-2.5 transition-colors cursor-pointer"
               >
                 <svg className="w-4 h-4 shrink-0" viewBox="0 0 48 48">
-                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
                 </svg>
                 <span>Sign in with Google</span>
               </button>
@@ -215,7 +264,7 @@ export function LoginView({ onLogin }: LoginViewProps) {
         </div>
       </div>
 
-      {/* Bottom Status Footer matching Screenshot 1 */}
+      {/* Bottom Footer */}
       <footer className="px-6 sm:px-12 py-5 flex items-center justify-end text-xs text-neutral-500">
         <div className="text-[11px] text-neutral-400">
           Police Bazaar Parking · Gate 1
