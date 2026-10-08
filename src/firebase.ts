@@ -101,21 +101,32 @@ export function handleFirestoreError(
  * Seed initial parking data if Firestore collections are empty
  */
 export async function seedFirestoreIfEmpty(): Promise<void> {
-  const vehiclesPath = 'vehicles';
   try {
-    const snap = await getDocs(collection(db, vehiclesPath));
-    if (snap.empty) {
-      // Seed vehicles
+    // Seed vehicles if empty
+    const vehiclesSnap = await getDocs(collection(db, 'vehicles'));
+    if (vehiclesSnap.empty) {
       for (const v of INITIAL_VEHICLES) {
-        await setDoc(doc(db, vehiclesPath, v.id), v);
+        await setDoc(doc(db, 'vehicles', v.id), v);
       }
-      // Seed settings
+    }
+
+    // Seed settings if empty
+    const settingsSnap = await getDocs(collection(db, 'settings'));
+    if (settingsSnap.empty) {
       await setDoc(doc(db, 'settings', 'current'), INITIAL_SETTINGS);
-      // Seed gate activity
+    }
+
+    // Seed gate activities if empty
+    const gateSnap = await getDocs(collection(db, 'gate_activities'));
+    if (gateSnap.empty) {
       for (const a of INITIAL_GATE_ACTIVITY) {
         await setDoc(doc(db, 'gate_activities', a.id), a);
       }
-      // Seed operator shifts / sessions
+    }
+
+    // Seed operator shifts / sessions if empty
+    const sessionsSnap = await getDocs(collection(db, 'operator_sessions'));
+    if (sessionsSnap.empty) {
       for (const s of INITIAL_OPERATOR_SESSIONS) {
         await setDoc(doc(db, 'operator_sessions', s.id), s);
       }
@@ -228,7 +239,7 @@ export async function createVehicleInFirestore(vehicle: VehicleRecord): Promise<
 export async function updateVehicleInFirestore(vehicle: VehicleRecord): Promise<void> {
   const path = `vehicles/${vehicle.id}`;
   try {
-    await updateDoc(doc(db, 'vehicles', vehicle.id), { ...vehicle });
+    await setDoc(doc(db, 'vehicles', vehicle.id), { ...vehicle }, { merge: true });
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, path);
   }
@@ -296,7 +307,7 @@ export async function createOperatorSessionInFirestore(session: OperatorSession)
 export async function updateOperatorSessionInFirestore(session: OperatorSession): Promise<void> {
   const path = `operator_sessions/${session.id}`;
   try {
-    await updateDoc(doc(db, 'operator_sessions', session.id), { ...session });
+    await setDoc(doc(db, 'operator_sessions', session.id), { ...session }, { merge: true });
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, path);
   }

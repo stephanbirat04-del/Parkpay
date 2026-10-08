@@ -103,7 +103,9 @@ export function loadOperatorSessions(): OperatorSession[] {
 
 export function saveOperatorSessions(sessions: OperatorSession[]): void {
   try {
-    localStorage.setItem(OPERATOR_SESSIONS_KEY, JSON.stringify(sessions));
+    if (Array.isArray(sessions)) {
+      localStorage.setItem(OPERATOR_SESSIONS_KEY, JSON.stringify(sessions));
+    }
   } catch (e) {
     console.error(e);
   }
@@ -132,6 +134,7 @@ export function saveCurrentSession(session: OperatorSession | null): void {
 }
 
 export function exportOperatorSessionsToCSV(sessions: OperatorSession[]): void {
+  const safeList = Array.isArray(sessions) ? sessions : [];
   const headers = [
     'Session ID',
     'Operator Name',
@@ -146,7 +149,7 @@ export function exportOperatorSessionsToCSV(sessions: OperatorSession[]): void {
     'Notes'
   ];
 
-  const rows = sessions.map(s => [
+  const rows = safeList.map(s => [
     `"${s.id}"`,
     `"${s.operatorName}"`,
     `"${s.operatorEmail}"`,
@@ -174,6 +177,7 @@ export function exportOperatorSessionsToCSV(sessions: OperatorSession[]): void {
 }
 
 export function exportVehiclesToCSV(vehicles: VehicleRecord[]): void {
+  const safeList = Array.isArray(vehicles) ? vehicles : [];
   const headers = [
     'License Plate',
     'Vehicle Type',
@@ -189,7 +193,7 @@ export function exportVehiclesToCSV(vehicles: VehicleRecord[]): void {
     'Logged By Staff'
   ];
 
-  const rows = vehicles.map(v => [
+  const rows = safeList.map(v => [
     `"${v.plateNumber}"`,
     `"${v.vehicleType}"`,
     `"${v.ownerPhone || 'N/A'}"`,

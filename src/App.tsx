@@ -57,16 +57,17 @@ import { SettingsView } from './views/SettingsView';
 export default function App() {
   // Authentication state
   const [currentUser, setCurrentUser] = useState<StaffUser | null>(() => loadCurrentUser());
-  const [operatorSessions, setOperatorSessions] = useState<OperatorSession[]>(() =>
-    loadOperatorSessions()
-  );
+  const [operatorSessions, setOperatorSessions] = useState<OperatorSession[]>(() => {
+    const loaded = loadOperatorSessions();
+    return Array.isArray(loaded) ? loaded : [];
+  });
   const [currentSession, setCurrentSession] = useState<OperatorSession | null>(() =>
     loadCurrentSession()
   );
   const [shiftModalMode, setShiftModalMode] = useState<'end-shift' | 'view' | null>(null);
   const [lastSession, setLastSession] = useState<OperatorSession | null>(() => {
     const sessions = loadOperatorSessions();
-    return sessions.find((s) => s.status === 'completed') || null;
+    return Array.isArray(sessions) ? (sessions.find((s) => s.status === 'completed') || null) : null;
   });
 
   // Navigation view
@@ -137,7 +138,7 @@ export default function App() {
     });
 
     const unsubSessions = subscribeToOperatorSessions((firestoreSessions) => {
-      if (firestoreSessions.length > 0) {
+      if (Array.isArray(firestoreSessions) && firestoreSessions.length > 0) {
         setOperatorSessions(firestoreSessions);
         saveOperatorSessions(firestoreSessions);
       }
@@ -154,7 +155,8 @@ export default function App() {
   // Auth handlers
   const handleLogin = (user: StaffUser) => {
     const nowIso = new Date().toISOString();
-    const existingActive = operatorSessions.find(
+    const sessionsList = Array.isArray(operatorSessions) ? operatorSessions : [];
+    const existingActive = sessionsList.find(
       (s) => s.operatorId === user.id && s.status === 'active'
     );
 
@@ -178,11 +180,15 @@ export default function App() {
     saveCurrentSession(session);
 
     if (!existingActive) {
-      const updated = [session, ...operatorSessions];
+      const updated = [session, ...sessionsList];
       setOperatorSessions(updated);
       saveOperatorSessions(updated);
       createOperatorSessionInFirestore(session).catch((e) =>
         console.warn('Failed to sync operator session on login:', e)
+      );
+    } else {
+      createOperatorSessionInFirestore(existingActive).catch((e) =>
+        console.warn('Failed to ensure active session in Firestore:', e)
       );
     }
   };
@@ -215,7 +221,8 @@ export default function App() {
       notes: notes || currentSession?.notes,
     };
 
-    const updatedSessions = operatorSessions.map((s) =>
+    const sessionsList = Array.isArray(operatorSessions) ? operatorSessions : [];
+    const updatedSessions = sessionsList.map((s) =>
       s.id === completedSession.id ? completedSession : s
     );
     if (!updatedSessions.some((s) => s.id === completedSession.id)) {

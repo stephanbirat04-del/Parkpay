@@ -20,8 +20,8 @@ import {
 } from 'lucide-react';
 
 interface HistoryViewProps {
-  vehicles: VehicleRecord[];
-  operatorSessions: OperatorSession[];
+  vehicles?: VehicleRecord[];
+  operatorSessions?: OperatorSession[];
   currentSession?: OperatorSession | null;
   onPrintReceipt: (vehicle: VehicleRecord) => void;
   onMarkPaid: (vehicleId: string) => void;
@@ -29,13 +29,23 @@ interface HistoryViewProps {
 }
 
 export function HistoryView({
-  vehicles,
-  operatorSessions,
+  vehicles = [],
+  operatorSessions = [],
   currentSession,
   onPrintReceipt,
   onMarkPaid,
   onEmailReceipt,
 }: HistoryViewProps) {
+  // Safe normalized array references
+  const safeVehicles = useMemo(
+    () => (Array.isArray(vehicles) ? vehicles : []),
+    [vehicles]
+  );
+  const safeSessions = useMemo(
+    () => (Array.isArray(operatorSessions) ? operatorSessions : []),
+    [operatorSessions]
+  );
+
   // Tab switcher
   const [activeTab, setActiveTab] = useState<'vehicles' | 'shifts'>('vehicles');
 
@@ -81,7 +91,7 @@ export function HistoryView({
   };
 
   const filteredVehicles = useMemo(() => {
-    return vehicles.filter((v) => {
+    return safeVehicles.filter((v) => {
       // Plate filter
       if (
         appliedFilters.plateQuery &&
@@ -107,16 +117,16 @@ export function HistoryView({
 
       return true;
     });
-  }, [vehicles, appliedFilters]);
+  }, [safeVehicles, appliedFilters]);
 
   // Merge current active session into sessions list if not already present
   const allSessions = useMemo(() => {
-    let list = [...operatorSessions];
+    let list = [...safeSessions];
     if (currentSession && !list.some((s) => s.id === currentSession.id)) {
       list = [currentSession, ...list];
     }
     return list;
-  }, [operatorSessions, currentSession]);
+  }, [safeSessions, currentSession]);
 
   const filteredShifts = useMemo(() => {
     return allSessions.filter((s) => {
@@ -142,8 +152,8 @@ export function HistoryView({
   };
 
   const handleExportAll = () => {
-    const count = vehicles.length;
-    exportVehiclesToCSV(vehicles);
+    const count = safeVehicles.length;
+    exportVehiclesToCSV(safeVehicles);
     setExportNotification(`Successfully downloaded CSV with all ${count} vehicle history records.`);
     setTimeout(() => setExportNotification(null), 4000);
   };
