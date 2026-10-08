@@ -9,7 +9,11 @@ interface DashboardViewProps {
   onNavigateToActive: () => void;
 }
 
-export function DashboardView({ vehicles, gateActivity, onNavigateToActive }: DashboardViewProps) {
+export function DashboardView({
+  vehicles,
+  gateActivity,
+  onNavigateToActive,
+}: DashboardViewProps) {
   const [hoveredDay, setHoveredDay] = useState<{ day: string; amount: number } | null>(null);
   const [hoveredHour, setHoveredHour] = useState<{ hour: string; exits: number } | null>(null);
 

@@ -16,6 +16,7 @@ export function SettingsView({
   const isAdmin = currentUser.role === 'admin';
 
   const [lotName, setLotName] = useState(settings.lotName);
+  const [totalCapacity, setTotalCapacity] = useState(settings.totalCapacity || 60);
   const [hourlyRate, setHourlyRate] = useState(settings.hourlyRate);
   const [minimumCharge, setMinimumCharge] = useState(settings.minimumCharge);
   const [gracePeriod, setGracePeriod] = useState(settings.gracePeriodMinutes);
@@ -39,6 +40,7 @@ export function SettingsView({
 
     const updated: LotSettings = {
       lotName,
+      totalCapacity: Math.max(10, Number(totalCapacity) || 60),
       hourlyRate: Number(hourlyRate),
       minimumCharge: Number(minimumCharge),
       gracePeriodMinutes: Number(gracePeriod),
@@ -83,18 +85,35 @@ export function SettingsView({
           </div>
 
           <form onSubmit={handleSave} className="space-y-5">
-            {/* Lot name */}
-            <div>
-              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                Lot name
-              </label>
-              <input
-                type="text"
-                value={lotName}
-                onChange={(e) => setLotName(e.target.value)}
-                disabled={!isAdmin}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-neutral-300 text-sm font-medium text-neutral-900 disabled:bg-neutral-100/70 disabled:text-neutral-500 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 bg-white"
-              />
+            {/* Lot name and capacity grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                  Lot name
+                </label>
+                <input
+                  type="text"
+                  value={lotName}
+                  onChange={(e) => setLotName(e.target.value)}
+                  disabled={!isAdmin}
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-neutral-300 text-sm font-medium text-neutral-900 disabled:bg-neutral-100/70 disabled:text-neutral-500 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                  Total Capacity (spots)
+                </label>
+                <input
+                  type="number"
+                  min="5"
+                  max="500"
+                  value={totalCapacity}
+                  onChange={(e) => setTotalCapacity(Number(e.target.value))}
+                  disabled={!isAdmin}
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-neutral-300 text-sm font-mono text-neutral-900 disabled:bg-neutral-100/70 disabled:text-neutral-500 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 bg-white"
+                />
+              </div>
             </div>
 
             {/* Hourly rate & Minimum charge grid */}

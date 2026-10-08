@@ -175,6 +175,7 @@ export default function App() {
       durationMinutes: 0,
       status: 'active',
       vehiclesProcessed: 0,
+      notes: '',
     };
 
     setCurrentUser(user);
@@ -227,7 +228,7 @@ export default function App() {
       logoutTime: logoutTimeIso,
       durationMinutes,
       status: 'completed',
-      notes: notes || currentSession?.notes,
+      notes: notes || currentSession?.notes || '',
     };
 
     const sessionsList = Array.isArray(operatorSessions) ? operatorSessions : [];

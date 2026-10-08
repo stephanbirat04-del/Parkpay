@@ -25,6 +25,7 @@ export interface VehicleRecord {
 
 export interface LotSettings {
   lotName: string;
+  totalCapacity?: number;
   hourlyRate: number;
   minimumCharge: number;
   gracePeriodMinutes: number;
