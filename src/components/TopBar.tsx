@@ -56,15 +56,26 @@ export function TopBar({
         <ParkPayLogoMark className="w-4 h-4" />
         <span className="text-neutral-900 font-bold">ParkPay</span>
         <span className="text-neutral-300">/</span>
-        <span className="text-neutral-500">Day Shift</span>
+        <span className="text-neutral-500">
+          {currentSession?.operatorRole === 'admin' ? 'Control HQ' : 'Day Shift'}
+        </span>
+        {currentSession?.operatorRole === 'admin' && (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-[10px] text-amber-900 font-bold border border-amber-200">
+            Admin
+          </span>
+        )}
         {currentSession?.loginTime && (
           <button
             type="button"
             onClick={onOpenShiftDetails}
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-[10px] text-emerald-800 font-semibold border border-emerald-200/60 hover:bg-emerald-100/70 transition-colors cursor-pointer"
+            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border transition-colors cursor-pointer ${
+              currentSession?.operatorRole === 'admin'
+                ? 'bg-amber-50 text-amber-900 border-amber-200/80 hover:bg-amber-100/70'
+                : 'bg-emerald-50 text-emerald-800 border-emerald-200/60 hover:bg-emerald-100/70'
+            }`}
             title="Click to view shift login/logout details"
           >
-            <Clock className="w-3 h-3 text-emerald-600" />
+            <Clock className={`w-3 h-3 ${currentSession?.operatorRole === 'admin' ? 'text-amber-700' : 'text-emerald-600'}`} />
             <span>In at {formatTimeIST(currentSession.loginTime)}</span>
           </button>
         )}

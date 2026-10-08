@@ -153,7 +153,10 @@ export default function App() {
   }, []);
 
   // Auth handlers
-  const handleLogin = (user: StaffUser) => {
+  const handleLogin = (
+    user: StaffUser,
+    preferredView?: 'dashboard' | 'active' | 'history' | 'settings'
+  ) => {
     const nowIso = new Date().toISOString();
     const sessionsList = Array.isArray(operatorSessions) ? operatorSessions : [];
     const existingActive = sessionsList.find(
@@ -166,7 +169,7 @@ export default function App() {
       operatorName: user.name,
       operatorEmail: user.email,
       operatorRole: user.role,
-      gate: user.gate || 'Gate 1',
+      gate: user.gate || (user.role === 'admin' ? 'HQ Control' : 'Gate 1'),
       loginTime: nowIso,
       logoutTime: null,
       durationMinutes: 0,
@@ -178,6 +181,12 @@ export default function App() {
     saveCurrentUser(user);
     setCurrentSession(session);
     saveCurrentSession(session);
+
+    if (preferredView) {
+      setCurrentView(preferredView);
+    } else if (user.role === 'admin') {
+      setCurrentView('dashboard');
+    }
 
     if (!existingActive) {
       const updated = [session, ...sessionsList];
