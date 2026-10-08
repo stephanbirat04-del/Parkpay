@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { VehicleRecord, VehicleType, StaffUser, LotSettings } from '../types';
+import { VehicleRecord, VehicleType, StaffUser, LotSettings, OperatorSession } from '../types';
 import { formatTimeIST } from '../utils/fee';
 import { Search, Plus, Car, Clock, ArrowRight, Printer, AlertCircle } from 'lucide-react';
 
@@ -7,6 +7,7 @@ interface ActiveLotViewProps {
   vehicles: VehicleRecord[];
   settings: LotSettings;
   currentUser: StaffUser;
+  currentSession?: OperatorSession | null;
   onLogEntry: (plate: string, phone: string, type: VehicleType) => void;
   onProcessExit: (vehicle: VehicleRecord) => void;
   onReprintReceipt: (vehicle: VehicleRecord) => void;
@@ -17,6 +18,7 @@ export function ActiveLotView({
   vehicles,
   settings,
   currentUser,
+  currentSession,
   onLogEntry,
   onProcessExit,
   onReprintReceipt,
@@ -98,11 +100,21 @@ export function ActiveLotView({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column: New Vehicle Entry Form */}
         <div className="lg:col-span-5 bg-white p-6 rounded-xl border border-neutral-200/90 shadow-2xs">
-          <div className="mb-5">
-            <h2 className="text-base font-bold text-neutral-900">New vehicle entry</h2>
-            <p className="text-xs text-neutral-500 mt-0.5">
-              Large controls for fast, one hand gate operation.
-            </p>
+          <div className="mb-5 flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold text-neutral-900">New vehicle entry</h2>
+              <p className="text-xs text-neutral-500 mt-0.5">
+                Large controls for fast, one hand gate operation.
+              </p>
+            </div>
+            {currentSession && (
+              <div className="text-right shrink-0">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/60 text-[10px] font-semibold">
+                  <Clock className="w-3 h-3 text-emerald-600" />
+                  <span>Login: {formatTimeIST(currentSession.loginTime)}</span>
+                </span>
+              </div>
+            )}
           </div>
 
           {formError && (

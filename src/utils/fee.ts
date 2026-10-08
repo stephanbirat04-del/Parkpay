@@ -85,3 +85,27 @@ export function formatDateIST(dateString?: string | Date): string {
   const year = d.getFullYear();
   return `${day} ${month} ${year}`;
 }
+
+export function formatDateTimeIST(dateString?: string | Date): string {
+  if (!dateString) return '—';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return '—';
+  const day = d.getDate();
+  const month = d.toLocaleString('en-IN', { month: 'short' });
+  const year = d.getFullYear();
+  const time = d.toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+  return `${day} ${month} ${year}, ${time} IST`;
+}
+
+export function formatShiftDuration(minutes?: number): string {
+  if (minutes === undefined || minutes === null || minutes < 0) return '—';
+  const hrs = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (hrs === 0) return `${mins}m`;
+  return `${hrs}h ${mins}m`;
+}

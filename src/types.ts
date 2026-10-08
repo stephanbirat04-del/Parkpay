@@ -42,6 +42,21 @@ export interface StaffUser {
   gate: string;
 }
 
+export interface OperatorSession {
+  id: string;
+  operatorId: string;
+  operatorName: string;
+  operatorEmail: string;
+  operatorRole: 'staff' | 'admin';
+  gate: string;
+  loginTime: string; // ISO string
+  logoutTime?: string | null; // ISO string when logged out, null if currently active
+  durationMinutes?: number;
+  status: 'active' | 'completed';
+  vehiclesProcessed?: number;
+  notes?: string;
+}
+
 export interface GateActivityItem {
   id: string;
   timestamp: string;

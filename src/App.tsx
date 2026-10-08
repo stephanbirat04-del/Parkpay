@@ -7,6 +7,7 @@ import {
   StaffUser,
   LotSettings,
   GateActivityItem,
+  OperatorSession,
 } from './types';
 import {
   loadCurrentUser,
@@ -17,6 +18,10 @@ import {
   saveVehicles,
   loadGateActivity,
   saveGateActivity,
+  loadOperatorSessions,
+  saveOperatorSessions,
+  loadCurrentSession,
+  saveCurrentSession,
 } from './utils/storage';
 import { INITIAL_STAFF } from './utils/initialData';
 import { calculateFee, generateReceiptNumber, formatTimeIST } from './utils/fee';
@@ -25,10 +30,13 @@ import {
   subscribeToVehicles,
   subscribeToSettings,
   subscribeToGateActivities,
+  subscribeToOperatorSessions,
   createVehicleInFirestore,
   updateVehicleInFirestore,
   saveSettingsInFirestore,
   createGateActivityInFirestore,
+  createOperatorSessionInFirestore,
+  updateOperatorSessionInFirestore,
 } from './firebase';
 
 import { Sidebar } from './components/Sidebar';
@@ -36,6 +44,7 @@ import { TopBar } from './components/TopBar';
 import { ExitModal } from './components/ExitModal';
 import { ReceiptModal } from './components/ReceiptModal';
 import { GmailEmailModal } from './components/GmailEmailModal';
+import { ShiftSummaryModal } from './components/ShiftSummaryModal';
 import { signInWithGoogle, getAccessToken } from './services/gmail';
 import { auth } from './firebase';
 
@@ -48,6 +57,17 @@ import { SettingsView } from './views/SettingsView';
 export default function App() {
   // Authentication state
   const [currentUser, setCurrentUser] = useState<StaffUser | null>(() => loadCurrentUser());
+  const [operatorSessions, setOperatorSessions] = useState<OperatorSession[]>(() =>
+    loadOperatorSessions()
+  );
+  const [currentSession, setCurrentSession] = useState<OperatorSession | null>(() =>
+    loadCurrentSession()
+  );
+  const [shiftModalMode, setShiftModalMode] = useState<'end-shift' | 'view' | null>(null);
+  const [lastSession, setLastSession] = useState<OperatorSession | null>(() => {
+    const sessions = loadOperatorSessions();
+    return sessions.find((s) => s.status === 'completed') || null;
+  });
 
   // Navigation view
   const [currentView, setCurrentView] = useState<'dashboard' | 'active' | 'history' | 'settings'>('dashboard');
@@ -116,22 +136,107 @@ export default function App() {
       }
     });
 
+    const unsubSessions = subscribeToOperatorSessions((firestoreSessions) => {
+      if (firestoreSessions.length > 0) {
+        setOperatorSessions(firestoreSessions);
+        saveOperatorSessions(firestoreSessions);
+      }
+    });
+
     return () => {
       unsubVehicles();
       unsubSettings();
       unsubActivity();
+      unsubSessions();
     };
   }, []);
 
   // Auth handlers
   const handleLogin = (user: StaffUser) => {
+    const nowIso = new Date().toISOString();
+    const existingActive = operatorSessions.find(
+      (s) => s.operatorId === user.id && s.status === 'active'
+    );
+
+    const session: OperatorSession = existingActive || {
+      id: `sess-${Date.now()}`,
+      operatorId: user.id,
+      operatorName: user.name,
+      operatorEmail: user.email,
+      operatorRole: user.role,
+      gate: user.gate || 'Gate 1',
+      loginTime: nowIso,
+      logoutTime: null,
+      durationMinutes: 0,
+      status: 'active',
+      vehiclesProcessed: 0,
+    };
+
     setCurrentUser(user);
     saveCurrentUser(user);
+    setCurrentSession(session);
+    saveCurrentSession(session);
+
+    if (!existingActive) {
+      const updated = [session, ...operatorSessions];
+      setOperatorSessions(updated);
+      saveOperatorSessions(updated);
+      createOperatorSessionInFirestore(session).catch((e) =>
+        console.warn('Failed to sync operator session on login:', e)
+      );
+    }
   };
 
   const handleSignOut = () => {
+    // Open the Shift Summary & Logout modal to show exact login time and logout time
+    setShiftModalMode('end-shift');
+  };
+
+  const handleConfirmSignOut = async (notes?: string) => {
+    const logoutTimeIso = new Date().toISOString();
+    const loginTimeIso = currentSession?.loginTime || logoutTimeIso;
+    const diffMs = Math.max(0, new Date(logoutTimeIso).getTime() - new Date(loginTimeIso).getTime());
+    const durationMinutes = Math.max(1, Math.round(diffMs / (1000 * 60)));
+
+    const completedSession: OperatorSession = {
+      ...(currentSession || {
+        id: `sess-${Date.now()}`,
+        operatorId: currentUser?.id || 'staff-1',
+        operatorName: currentUser?.name || 'Gate Operator',
+        operatorEmail: currentUser?.email || 'operator@parkpay.in',
+        operatorRole: currentUser?.role || 'staff',
+        gate: currentUser?.gate || 'Gate 1',
+        loginTime: loginTimeIso,
+        vehiclesProcessed: 0,
+      }),
+      logoutTime: logoutTimeIso,
+      durationMinutes,
+      status: 'completed',
+      notes: notes || currentSession?.notes,
+    };
+
+    const updatedSessions = operatorSessions.map((s) =>
+      s.id === completedSession.id ? completedSession : s
+    );
+    if (!updatedSessions.some((s) => s.id === completedSession.id)) {
+      updatedSessions.unshift(completedSession);
+    }
+
+    setOperatorSessions(updatedSessions);
+    saveOperatorSessions(updatedSessions);
+
+    try {
+      await updateOperatorSessionInFirestore(completedSession);
+    } catch (e) {
+      console.warn('Failed to sync operator session logout to Firestore:', e);
+    }
+
+    setLastSession(completedSession);
+    setCurrentSession(null);
+    saveCurrentSession(null);
     setCurrentUser(null);
     saveCurrentUser(null);
+    setShiftModalMode(null);
   };
 
   // Data operations
@@ -175,6 +280,20 @@ export default function App() {
       await createGateActivityInFirestore(newActivity);
     } catch (e) {
       console.error('Failed to sync entry to Firestore:', e);
+    }
+
+    // Update active operator shift vehicles processed count
+    if (currentSession) {
+      const updatedSess: OperatorSession = {
+        ...currentSession,
+        vehiclesProcessed: (currentSession.vehiclesProcessed || 0) + 1,
+      };
+      setCurrentSession(updatedSess);
+      saveCurrentSession(updatedSess);
+      setOperatorSessions((prev) =>
+        prev.map((s) => (s.id === updatedSess.id ? updatedSess : s))
+      );
+      updateOperatorSessionInFirestore(updatedSess).catch(() => {});
     }
   };
 
@@ -245,6 +364,20 @@ export default function App() {
     } catch (e) {
       console.error('Failed to sync exit to Firestore:', e);
     }
+
+    // Update active operator shift vehicles processed count
+    if (currentSession) {
+      const updatedSess: OperatorSession = {
+        ...currentSession,
+        vehiclesProcessed: (currentSession.vehiclesProcessed || 0) + 1,
+      };
+      setCurrentSession(updatedSess);
+      saveCurrentSession(updatedSess);
+      setOperatorSessions((prev) =>
+        prev.map((s) => (s.id === updatedSess.id ? updatedSess : s))
+      );
+      updateOperatorSessionInFirestore(updatedSess).catch(() => {});
+    }
   };
 
   const handleMarkPaid = async (vehicleId: string) => {
@@ -280,7 +413,7 @@ export default function App() {
 
   // If unauthenticated, show Staff sign-in view matching Screen 1
   if (!currentUser) {
-    return <LoginView onLogin={handleLogin} />;
+    return <LoginView onLogin={handleLogin} lastSession={lastSession} />;
   }
 
   return (
@@ -290,7 +423,9 @@ export default function App() {
         currentView={currentView}
         setCurrentView={setCurrentView}
         currentUser={currentUser}
+        currentSession={currentSession}
         onSignOut={handleSignOut}
+        onOpenShiftDetails={() => setShiftModalMode('view')}
       />
 
       {/* Main Content Area */}
@@ -300,6 +435,8 @@ export default function App() {
           currentView={currentView}
           googleEmail={googleEmail}
           onConnectGoogle={handleConnectGoogle}
+          currentSession={currentSession}
+          onOpenShiftDetails={() => setShiftModalMode('view')}
         />
 
         {/* Viewport content */}
@@ -317,6 +454,7 @@ export default function App() {
               vehicles={vehicles}
               settings={settings}
               currentUser={currentUser}
+              currentSession={currentSession}
               onLogEntry={handleLogEntry}
               onProcessExit={handleProcessExit}
               onReprintReceipt={(v) => setReceiptVehicle(v)}
@@ -327,6 +465,8 @@ export default function App() {
           {currentView === 'history' && (
             <HistoryView
               vehicles={vehicles}
+              operatorSessions={operatorSessions}
+              currentSession={currentSession}
               onPrintReceipt={(v) => setReceiptVehicle(v)}
               onMarkPaid={handleMarkPaid}
               onEmailReceipt={(v) => setEmailVehicle(v)}
@@ -381,6 +521,18 @@ export default function App() {
         onClose={() => setEmailVehicle(null)}
         senderName={currentUser?.name || 'Gate Operator'}
       />
+
+      {/* Operator Shift Timings & Log Out Modal */}
+      {shiftModalMode && (
+        <ShiftSummaryModal
+          isOpen={Boolean(shiftModalMode)}
+          onClose={() => setShiftModalMode(null)}
+          currentUser={currentUser}
+          currentSession={currentSession}
+          onConfirmSignOut={handleConfirmSignOut}
+          mode={shiftModalMode}
+        />
+      )}
     </div>
   );
 }

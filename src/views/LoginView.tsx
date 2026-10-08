@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import { StaffUser } from '../types';
+import { StaffUser, OperatorSession } from '../types';
 import { INITIAL_STAFF } from '../utils/initialData';
-import { ArrowRight, ShieldCheck } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Clock, LogOut } from 'lucide-react';
 import { ParkPayLogo, ParkPayLogoMark } from '../components/ParkPayLogo';
+import { formatTimeIST, formatShiftDuration } from '../utils/fee';
 
 interface LoginViewProps {
   onLogin: (user: StaffUser) => void;
+  lastSession?: OperatorSession | null;
 }
 
-export function LoginView({ onLogin }: LoginViewProps) {
+export function LoginView({ onLogin, lastSession }: LoginViewProps) {
   const [email, setEmail] = useState('operator@parkpay.in');
   const [password, setPassword] = useState('••••••••••');
   const [error, setError] = useState('');
@@ -129,6 +131,47 @@ export function LoginView({ onLogin }: LoginViewProps) {
             {error && (
               <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">
                 {error}
+              </div>
+            )}
+
+            {lastSession && lastSession.logoutTime && (
+              <div className="mb-5 p-3.5 rounded-xl bg-[#FAFBF9] border border-neutral-200/90 text-xs text-neutral-700 space-y-1.5 shadow-2xs">
+                <div className="flex items-center justify-between font-bold text-neutral-800 text-[10px] uppercase tracking-wider">
+                  <span className="flex items-center gap-1.5 text-emerald-800">
+                    <Clock className="w-3.5 h-3.5 text-emerald-700" />
+                    Last Operator Shift Summary
+                  </span>
+                  <span className="text-[10px] text-neutral-500 font-semibold px-1.5 py-0.5 bg-neutral-200/70 rounded">
+                    Handover
+                  </span>
+                </div>
+                <div className="text-neutral-900 font-bold text-xs">
+                  {lastSession.operatorName} · {lastSession.gate}
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[11px] text-neutral-600 pt-1.5 border-t border-neutral-200/60 font-mono">
+                  <div>
+                    <span className="text-[9px] text-neutral-400 font-sans uppercase font-bold block">
+                      Login Time
+                    </span>
+                    <span className="text-neutral-800 font-semibold">
+                      {formatTimeIST(lastSession.loginTime)} IST
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-neutral-400 font-sans uppercase font-bold block">
+                      Log Out Time
+                    </span>
+                    <span className="text-neutral-800 font-semibold">
+                      {formatTimeIST(lastSession.logoutTime)} IST
+                    </span>
+                  </div>
+                </div>
+                {lastSession.durationMinutes !== undefined && (
+                  <div className="text-[10px] text-neutral-500 pt-0.5 flex items-center justify-between">
+                    <span>Duration: {formatShiftDuration(lastSession.durationMinutes)}</span>
+                    <span>{lastSession.vehiclesProcessed || 0} vehicles logged</span>
+                  </div>
+                )}
               </div>
             )}
 
