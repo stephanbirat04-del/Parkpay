@@ -1,17 +1,25 @@
 import { useState } from 'react';
-import { VehicleRecord, GateActivityItem } from '../types';
+import { VehicleRecord, GateActivityItem, StaffUser } from '../types';
 import { REVENUE_TREND_DAYS, EXITS_BY_HOUR } from '../utils/initialData';
 import { ArrowUpRight, Car, Activity, Users, CircleDollarSign } from 'lucide-react';
 
 interface DashboardViewProps {
   vehicles: VehicleRecord[];
   gateActivity: GateActivityItem[];
+  currentUser?: StaffUser;
   onNavigateToActive: () => void;
 }
 
-export function DashboardView({ vehicles, gateActivity, onNavigateToActive }: DashboardViewProps) {
+export function DashboardView({
+  vehicles,
+  gateActivity,
+  currentUser,
+  onNavigateToActive,
+}: DashboardViewProps) {
   const [hoveredDay, setHoveredDay] = useState<{ day: string; amount: number } | null>(null);
   const [hoveredHour, setHoveredHour] = useState<{ hour: string; exits: number } | null>(null);
+
+  const isAdmin = currentUser?.role === 'admin';
 
   // Dynamic calculations
   const currentlyParkedCount = vehicles.filter((v) => v.status === 'Parked').length;
@@ -34,8 +42,8 @@ export function DashboardView({ vehicles, gateActivity, onNavigateToActive }: Da
         <p className="text-xs text-neutral-500 mt-0.5">Live view of lot occupancy and revenue.</p>
       </div>
 
-      {/* 4 Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Stat Cards */}
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${isAdmin ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4`}>
         {/* Currently Parked */}
         <div className="bg-white p-5 rounded-xl border border-neutral-200/90 shadow-2xs">
           <div className="flex items-center justify-between">
@@ -86,18 +94,20 @@ export function DashboardView({ vehicles, gateActivity, onNavigateToActive }: Da
           </div>
         </div>
 
-        {/* Month revenue */}
-        <div className="bg-white p-5 rounded-xl border border-neutral-200/90 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-neutral-500">Month revenue</span>
-            <span className="text-[11px] font-semibold text-emerald-700">+11.2%</span>
+        {/* Month revenue - visible only to Admin */}
+        {isAdmin && (
+          <div className="bg-white p-5 rounded-xl border border-neutral-200/90 shadow-2xs">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-neutral-500">Month revenue</span>
+              <span className="text-[11px] font-semibold text-emerald-700">+11.2%</span>
+            </div>
+            <div className="mt-3">
+              <span className="text-3xl font-bold font-mono text-neutral-900 tabular-nums">
+                {monthRevenue}
+              </span>
+            </div>
           </div>
-          <div className="mt-3">
-            <span className="text-3xl font-bold font-mono text-neutral-900 tabular-nums">
-              {monthRevenue}
-            </span>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Two visual charts: 7-day revenue trend & Today's exits by hour */}

@@ -22,6 +22,8 @@ import {
   saveOperatorSessions,
   loadCurrentSession,
   saveCurrentSession,
+  loadStaffUsers,
+  saveStaffUsers,
 } from './utils/storage';
 import { INITIAL_STAFF } from './utils/initialData';
 import { calculateFee, generateReceiptNumber, formatTimeIST } from './utils/fee';
@@ -31,12 +33,15 @@ import {
   subscribeToSettings,
   subscribeToGateActivities,
   subscribeToOperatorSessions,
+  subscribeToStaffUsers,
   createVehicleInFirestore,
   updateVehicleInFirestore,
   saveSettingsInFirestore,
   createGateActivityInFirestore,
   createOperatorSessionInFirestore,
   updateOperatorSessionInFirestore,
+  createStaffUserInFirestore,
+  deleteStaffUserInFirestore,
 } from './firebase';
 
 import { Sidebar } from './components/Sidebar';
@@ -57,6 +62,7 @@ import { SettingsView } from './views/SettingsView';
 export default function App() {
   // Authentication state
   const [currentUser, setCurrentUser] = useState<StaffUser | null>(() => loadCurrentUser());
+  const [staffList, setStaffList] = useState<StaffUser[]>(() => loadStaffUsers());
   const [operatorSessions, setOperatorSessions] = useState<OperatorSession[]>(() => {
     const loaded = loadOperatorSessions();
     return Array.isArray(loaded) ? loaded : [];
@@ -105,8 +111,16 @@ export default function App() {
       if (result.user) {
         setGoogleEmail(result.user.email);
       }
-    } catch (err) {
-      console.error('Failed to connect Google account:', err);
+    } catch (err: any) {
+      const isCancelled =
+        err?.code === 'auth/popup-closed-by-user' ||
+        err?.code === 'auth/cancelled-popup-request' ||
+        String(err?.message || '').includes('popup-closed-by-user') ||
+        String(err?.message || '').includes('cancelled-popup-request');
+
+      if (!isCancelled) {
+        console.warn('Failed to connect Google account:', err);
+      }
     }
   };
 
@@ -144,11 +158,19 @@ export default function App() {
       }
     });
 
+    const unsubStaff = subscribeToStaffUsers((firestoreStaff) => {
+      if (Array.isArray(firestoreStaff) && firestoreStaff.length > 0) {
+        setStaffList(firestoreStaff);
+        saveStaffUsers(firestoreStaff);
+      }
+    });
+
     return () => {
       unsubVehicles();
       unsubSettings();
       unsubActivity();
       unsubSessions();
+      unsubStaff();
     };
   }, []);
 
@@ -157,6 +179,22 @@ export default function App() {
     user: StaffUser,
     preferredView?: 'dashboard' | 'active' | 'history' | 'settings'
   ) => {
+    setCurrentUser(user);
+    saveCurrentUser(user);
+
+    if (preferredView) {
+      setCurrentView(preferredView);
+    } else if (user.role === 'admin') {
+      setCurrentView('dashboard');
+    }
+
+    // Only employees (staff operators) register shifts; admins do not log shifts
+    if (user.role === 'admin') {
+      setCurrentSession(null);
+      saveCurrentSession(null);
+      return;
+    }
+
     const nowIso = new Date().toISOString();
     const sessionsList = Array.isArray(operatorSessions) ? operatorSessions : [];
     const existingActive = sessionsList.find(
@@ -169,24 +207,17 @@ export default function App() {
       operatorName: user.name,
       operatorEmail: user.email,
       operatorRole: user.role,
-      gate: user.gate || (user.role === 'admin' ? 'HQ Control' : 'Gate 1'),
+      gate: user.gate || 'Gate 1',
       loginTime: nowIso,
       logoutTime: null,
       durationMinutes: 0,
       status: 'active',
       vehiclesProcessed: 0,
+      notes: '',
     };
 
-    setCurrentUser(user);
-    saveCurrentUser(user);
     setCurrentSession(session);
     saveCurrentSession(session);
-
-    if (preferredView) {
-      setCurrentView(preferredView);
-    } else if (user.role === 'admin') {
-      setCurrentView('dashboard');
-    }
 
     if (!existingActive) {
       const updated = [session, ...sessionsList];
@@ -203,11 +234,29 @@ export default function App() {
   };
 
   const handleSignOut = () => {
-    // Open the Shift Summary & Logout modal to show exact login time and logout time
+    if (currentUser?.role === 'admin') {
+      // Admin signs out directly without shift timing recording
+      setCurrentSession(null);
+      saveCurrentSession(null);
+      setCurrentUser(null);
+      saveCurrentUser(null);
+      return;
+    }
+    // For employee/staff, open the Shift Summary & Logout modal to verify shift timings
     setShiftModalMode('end-shift');
   };
 
   const handleConfirmSignOut = async (notes?: string) => {
+    // If admin, no shift to record
+    if (currentUser?.role === 'admin') {
+      setCurrentSession(null);
+      saveCurrentSession(null);
+      setCurrentUser(null);
+      saveCurrentUser(null);
+      setShiftModalMode(null);
+      return;
+    }
+
     const logoutTimeIso = new Date().toISOString();
     const loginTimeIso = currentSession?.loginTime || logoutTimeIso;
     const diffMs = Math.max(0, new Date(logoutTimeIso).getTime() - new Date(loginTimeIso).getTime());
@@ -219,7 +268,7 @@ export default function App() {
         operatorId: currentUser?.id || 'staff-1',
         operatorName: currentUser?.name || 'Gate Operator',
         operatorEmail: currentUser?.email || 'operator@parkpay.in',
-        operatorRole: currentUser?.role || 'staff',
+        operatorRole: 'staff',
         gate: currentUser?.gate || 'Gate 1',
         loginTime: loginTimeIso,
         vehiclesProcessed: 0,
@@ -227,7 +276,7 @@ export default function App() {
       logoutTime: logoutTimeIso,
       durationMinutes,
       status: 'completed',
-      notes: notes || currentSession?.notes,
+      notes: notes || currentSession?.notes || '',
     };
 
     const sessionsList = Array.isArray(operatorSessions) ? operatorSessions : [];
@@ -427,9 +476,39 @@ export default function App() {
     }
   };
 
+  // Staff management handlers
+  const handleRegisterStaff = async (newStaff: StaffUser) => {
+    const updated = [...staffList.filter((s) => s.id !== newStaff.id), newStaff];
+    setStaffList(updated);
+    saveStaffUsers(updated);
+    try {
+      await createStaffUserInFirestore(newStaff);
+    } catch (e) {
+      console.warn('Failed to sync staff user to Firestore:', e);
+    }
+  };
+
+  const handleDeleteStaff = async (staffId: string) => {
+    const updated = staffList.filter((s) => s.id !== staffId);
+    setStaffList(updated);
+    saveStaffUsers(updated);
+    try {
+      await deleteStaffUserInFirestore(staffId);
+    } catch (e) {
+      console.warn('Failed to delete staff user from Firestore:', e);
+    }
+  };
+
   // If unauthenticated, show Staff sign-in view matching Screen 1
   if (!currentUser) {
-    return <LoginView onLogin={handleLogin} lastSession={lastSession} />;
+    return (
+      <LoginView
+        onLogin={handleLogin}
+        onRegisterStaff={handleRegisterStaff}
+        staffList={staffList}
+        lastSession={lastSession}
+      />
+    );
   }
 
   return (
@@ -451,6 +530,7 @@ export default function App() {
           currentView={currentView}
           googleEmail={googleEmail}
           onConnectGoogle={handleConnectGoogle}
+          currentUser={currentUser}
           currentSession={currentSession}
           onOpenShiftDetails={() => setShiftModalMode('view')}
         />
@@ -461,6 +541,7 @@ export default function App() {
             <DashboardView
               vehicles={vehicles}
               gateActivity={gateActivity}
+              currentUser={currentUser}
               onNavigateToActive={() => setCurrentView('active')}
             />
           )}
@@ -493,7 +574,10 @@ export default function App() {
             <SettingsView
               settings={settings}
               currentUser={currentUser}
+              staffList={staffList}
               onSaveSettings={handleSaveSettings}
+              onRegisterStaff={handleRegisterStaff}
+              onDeleteStaff={handleDeleteStaff}
             />
           )}
 

@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react';
 import { Mail, Clock } from 'lucide-react';
 import { ParkPayLogoMark } from './ParkPayLogo';
-import { OperatorSession } from '../types';
+import { OperatorSession, StaffUser } from '../types';
 import { formatTimeIST } from '../utils/fee';
 
 interface TopBarProps {
   currentView: string;
   googleEmail?: string | null;
   onConnectGoogle?: () => void;
+  currentUser?: StaffUser | null;
   currentSession?: OperatorSession | null;
   onOpenShiftDetails?: () => void;
 }
@@ -16,39 +16,18 @@ export function TopBar({
   currentView,
   googleEmail,
   onConnectGoogle,
+  currentUser,
   currentSession,
   onOpenShiftDetails,
 }: TopBarProps) {
-  const [timeStr, setTimeStr] = useState('23 SEP 2026 · 13:42 IST');
-  const [useRealTime, setUseRealTime] = useState(false);
-
-  useEffect(() => {
-    if (!useRealTime) {
-      setTimeStr('23 SEP 2026 · 13:42 IST');
-      return;
-    }
-
-    const updateClock = () => {
-      const now = new Date();
-      const day = String(now.getDate()).padStart(2, '0');
-      const month = now.toLocaleString('en-US', { month: 'short' }).toUpperCase();
-      const year = now.getFullYear();
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      setTimeStr(`${day} ${month} ${year} · ${hours}:${minutes} IST`);
-    };
-
-    updateClock();
-    const interval = setInterval(updateClock, 1000);
-    return () => clearInterval(interval);
-  }, [useRealTime]);
-
   const viewLabels: Record<string, string> = {
     dashboard: 'Dashboard',
-    active: 'Active Lot',
+    active: 'Parking Log',
     history: 'History',
     settings: 'Settings',
   };
+
+  const isAdmin = currentUser?.role === 'admin' || currentSession?.operatorRole === 'admin';
 
   return (
     <header className="h-12 border-b border-neutral-200/80 bg-[#FAFBF9] px-6 flex items-center justify-between text-xs text-neutral-500 shrink-0 select-none">
@@ -57,25 +36,21 @@ export function TopBar({
         <span className="text-neutral-900 font-bold">ParkPay</span>
         <span className="text-neutral-300">/</span>
         <span className="text-neutral-500">
-          {currentSession?.operatorRole === 'admin' ? 'Control HQ' : 'Day Shift'}
+          {isAdmin ? 'Control HQ' : 'Day Shift'}
         </span>
-        {currentSession?.operatorRole === 'admin' && (
+        {isAdmin && (
           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-[10px] text-amber-900 font-bold border border-amber-200">
             Admin
           </span>
         )}
-        {currentSession?.loginTime && (
+        {!isAdmin && currentSession?.loginTime && (
           <button
             type="button"
             onClick={onOpenShiftDetails}
-            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border transition-colors cursor-pointer ${
-              currentSession?.operatorRole === 'admin'
-                ? 'bg-amber-50 text-amber-900 border-amber-200/80 hover:bg-amber-100/70'
-                : 'bg-emerald-50 text-emerald-800 border-emerald-200/60 hover:bg-emerald-100/70'
-            }`}
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border transition-colors cursor-pointer bg-emerald-50 text-emerald-800 border-emerald-200/60 hover:bg-emerald-100/70"
             title="Click to view shift login/logout details"
           >
-            <Clock className={`w-3 h-3 ${currentSession?.operatorRole === 'admin' ? 'text-amber-700' : 'text-emerald-600'}`} />
+            <Clock className="w-3 h-3 text-emerald-600" />
             <span>In at {formatTimeIST(currentSession.loginTime)}</span>
           </button>
         )}
@@ -99,26 +74,6 @@ export function TopBar({
             <span>{googleEmail ? googleEmail : 'Connect Gmail'}</span>
           </button>
         )}
-
-        <span className="text-neutral-300 font-light">|</span>
-
-        <div className="flex items-center gap-1.5 text-neutral-600 font-medium">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
-          </span>
-          <span>Live · synced</span>
-        </div>
-
-        <span className="text-neutral-300 font-light">|</span>
-
-        <button
-          onClick={() => setUseRealTime(!useRealTime)}
-          title="Click to toggle between simulated IST timestamp and live clock"
-          className="font-mono text-neutral-600 hover:text-neutral-900 transition-colors cursor-pointer tabular-nums flex items-center gap-1 text-[11px]"
-        >
-          {timeStr}
-        </button>
       </div>
     </header>
   );

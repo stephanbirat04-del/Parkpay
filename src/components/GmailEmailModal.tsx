@@ -65,10 +65,18 @@ export function GmailEmailModal({
       const { user } = await signInWithGoogle();
       setGoogleUserEmail(user.email);
     } catch (err: any) {
-      setStatusMessage({
-        type: 'error',
-        text: err?.message || 'Failed to authenticate with Google. Please try again.',
-      });
+      const isCancelled =
+        err?.code === 'auth/popup-closed-by-user' ||
+        err?.code === 'auth/cancelled-popup-request' ||
+        String(err?.message || '').includes('popup-closed-by-user') ||
+        String(err?.message || '').includes('cancelled-popup-request');
+
+      if (!isCancelled) {
+        setStatusMessage({
+          type: 'error',
+          text: err?.message || 'Failed to authenticate with Google. Please try again.',
+        });
+      }
     } finally {
       setIsSigningIn(false);
     }

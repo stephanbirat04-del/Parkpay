@@ -92,7 +92,7 @@ export function ActiveLotView({
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* View Header */}
       <div>
-        <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">Active Lot</h1>
+        <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">Parking Log</h1>
         <p className="text-xs text-neutral-500 mt-0.5">Log entries and process exits.</p>
       </div>
 

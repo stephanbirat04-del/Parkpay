@@ -11,6 +11,8 @@ import {
   Sliders,
   Car,
   UserCheck,
+  UserPlus,
+  Users,
   Building2,
   CheckCircle2,
   Eye,
@@ -23,17 +25,29 @@ import { formatTimeIST, formatShiftDuration } from '../utils/fee';
 
 interface LoginViewProps {
   onLogin: (user: StaffUser, preferredView?: 'dashboard' | 'active' | 'history' | 'settings') => void;
+  onRegisterStaff?: (user: StaffUser) => void;
+  staffList?: StaffUser[];
   lastSession?: OperatorSession | null;
 }
 
-export function LoginView({ onLogin, lastSession }: LoginViewProps) {
+export function LoginView({ onLogin, onRegisterStaff, staffList = INITIAL_STAFF, lastSession }: LoginViewProps) {
   // Portal mode: 'operator' for gate attendants, 'admin' for supervisors/management
   const [portal, setPortal] = useState<'operator' | 'admin'>('operator');
 
-  // Operator form state
+  // Operator mode: 'signin' for existing operators, 'register' for newly hired employees
+  const [operatorMode, setOperatorMode] = useState<'signin' | 'register'>('signin');
+
+  // Operator sign in form state
   const [operatorEmail, setOperatorEmail] = useState('operator@parkpay.in');
   const [operatorPassword, setOperatorPassword] = useState('••••••••••');
   const [selectedGate, setSelectedGate] = useState('Gate 1');
+
+  // Employee self-registration form state
+  const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regGate, setRegGate] = useState('Gate 1');
+  const [regPhone, setRegPhone] = useState('');
 
   // Admin form state
   const [adminEmail, setAdminEmail] = useState('admin@parkpay.in');
@@ -44,6 +58,7 @@ export function LoginView({ onLogin, lastSession }: LoginViewProps) {
 
   // Common UI state
   const [error, setError] = useState('');
+  const [registrationSuccess, setRegistrationSuccess] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
 
   // Operator sign in submission
@@ -51,25 +66,86 @@ export function LoginView({ onLogin, lastSession }: LoginViewProps) {
     e.preventDefault();
     setError('');
 
-    const matchedUser = INITIAL_STAFF.find(
-      (s) => s.email.toLowerCase() === operatorEmail.trim().toLowerCase()
+    const cleanEmail = operatorEmail.trim().toLowerCase();
+    const effectiveStaff = staffList && staffList.length > 0 ? staffList : INITIAL_STAFF;
+    const matchedUser = effectiveStaff.find(
+      (s) => s.email.toLowerCase() === cleanEmail
     );
 
     if (matchedUser) {
       onLogin({
         ...matchedUser,
-        gate: selectedGate,
+        gate: selectedGate || matchedUser.gate,
       }, 'active');
     } else {
-      onLogin({
+      // Auto-create recognized operator account
+      const derivedName = cleanEmail.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || 'Staff Operator';
+      const newStaff: StaffUser = {
         id: `staff-${Date.now()}`,
-        name: 'Ananya Sharma',
-        email: operatorEmail,
+        name: derivedName,
+        email: cleanEmail,
         role: 'staff',
         title: `Lot Operator · ${selectedGate}`,
         gate: selectedGate,
-      }, 'active');
+        createdAt: new Date().toISOString(),
+      };
+      if (onRegisterStaff) {
+        onRegisterStaff(newStaff);
+      }
+      onLogin(newStaff, 'active');
     }
+  };
+
+  // Employee self-registration submission
+  const handleRegisterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    const cleanName = regName.trim();
+    const cleanEmail = regEmail.trim().toLowerCase();
+
+    if (!cleanName) {
+      setError('Please enter your full legal or employee name.');
+      return;
+    }
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setError('Please provide a valid work email address.');
+      return;
+    }
+    if (!regPassword.trim()) {
+      setError('Please set an access PIN or password.');
+      return;
+    }
+
+    const effectiveStaff = staffList && staffList.length > 0 ? staffList : INITIAL_STAFF;
+    const existing = effectiveStaff.find(
+      (s) => s.email.toLowerCase() === cleanEmail
+    );
+    if (existing) {
+      setError(`An employee account already exists for ${cleanEmail}. Please switch to Sign In.`);
+      return;
+    }
+
+    const newEmployee: StaffUser = {
+      id: `staff-${Date.now()}`,
+      name: cleanName,
+      email: cleanEmail,
+      role: 'staff',
+      title: `Lot Operator · ${regGate}`,
+      gate: regGate,
+      phone: regPhone.trim() || undefined,
+      createdAt: new Date().toISOString(),
+    };
+
+    if (onRegisterStaff) {
+      onRegisterStaff(newEmployee);
+    }
+
+    setRegistrationSuccess(`Registered successfully as ${cleanName}! Starting your active shift...`);
+    // Automatically log new employee in and route to Parking Log
+    setTimeout(() => {
+      onLogin(newEmployee, 'active');
+    }, 400);
   };
 
   // Administrator sign in submission
@@ -143,7 +219,15 @@ export function LoginView({ onLogin, lastSession }: LoginViewProps) {
         );
       }
     } catch (err: any) {
-      setError(err?.message || 'Google sign-in failed. Please try again.');
+      const isCancelled =
+        err?.code === 'auth/popup-closed-by-user' ||
+        err?.code === 'auth/cancelled-popup-request' ||
+        String(err?.message || '').includes('popup-closed-by-user') ||
+        String(err?.message || '').includes('cancelled-popup-request');
+
+      if (!isCancelled) {
+        setError(err?.message || 'Google sign-in failed. Please try again.');
+      }
     }
   };
 
@@ -366,22 +450,63 @@ export function LoginView({ onLogin, lastSession }: LoginViewProps) {
             </button>
           </div>
 
-          {/* ===================== OPERATOR LOGIN FORM ===================== */}
+          {/* ===================== OPERATOR LOGIN & REGISTRATION FORM ===================== */}
           {portal === 'operator' && (
             <div className="bg-white p-7 sm:p-9 rounded-2xl border border-neutral-200/90 shadow-sm max-w-md w-full mx-auto animate-in fade-in duration-150">
-              <div className="mb-6 flex items-start justify-between">
+              {/* Header Toggle between Sign In and Register */}
+              <div className="mb-5 flex p-1 bg-neutral-100/90 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOperatorMode('signin');
+                    setError('');
+                  }}
+                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    operatorMode === 'signin'
+                      ? 'bg-white text-neutral-900 shadow-2xs'
+                      : 'text-neutral-500 hover:text-neutral-900'
+                  }`}
+                >
+                  Operator Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOperatorMode('register');
+                    setError('');
+                  }}
+                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    operatorMode === 'register'
+                      ? 'bg-emerald-700 text-white shadow-2xs'
+                      : 'text-neutral-600 hover:text-emerald-800'
+                  }`}
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Register Employee</span>
+                </button>
+              </div>
+
+              <div className="mb-5 flex items-start justify-between">
                 <div>
                   <div className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider mb-1 flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block"></span>
-                    Booth Terminal
+                    {operatorMode === 'register' ? 'New Staff Onboarding' : 'Booth Terminal'}
                   </div>
-                  <h2 className="text-xl font-bold text-neutral-900 leading-tight">Operator sign in</h2>
+                  <h2 className="text-xl font-bold text-neutral-900 leading-tight">
+                    {operatorMode === 'register' ? 'Register New Employee' : 'Operator sign in'}
+                  </h2>
                   <p className="text-xs text-neutral-500 mt-0.5">
-                    Sign in to commence parking ticketing and shift logging.
+                    {operatorMode === 'register'
+                      ? 'Create your operator account to begin logging shifts & ticketing.'
+                      : 'Sign in to commence parking ticketing and shift logging.'}
                   </p>
                 </div>
                 <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
-                  <Car className="w-5 h-5 text-emerald-700" />
+                  {operatorMode === 'register' ? (
+                    <UserPlus className="w-5 h-5 text-emerald-700" />
+                  ) : (
+                    <Car className="w-5 h-5 text-emerald-700" />
+                  )}
                 </div>
               </div>
 
@@ -391,8 +516,15 @@ export function LoginView({ onLogin, lastSession }: LoginViewProps) {
                 </div>
               )}
 
-              {/* Handover note from previous shift */}
-              {lastSession && lastSession.logoutTime && (
+              {registrationSuccess && (
+                <div className="mb-4 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-800 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{registrationSuccess}</span>
+                </div>
+              )}
+
+              {/* Handover note from previous shift (in signin mode) */}
+              {operatorMode === 'signin' && lastSession && lastSession.logoutTime && (
                 <div className="mb-5 p-3.5 rounded-xl bg-[#FAFBF9] border border-neutral-200/90 text-xs text-neutral-700 space-y-1.5 shadow-2xs">
                   <div className="flex items-center justify-between font-bold text-neutral-800 text-[10px] uppercase tracking-wider">
                     <span className="flex items-center gap-1.5 text-emerald-800">
@@ -433,95 +565,205 @@ export function LoginView({ onLogin, lastSession }: LoginViewProps) {
                 </div>
               )}
 
-              <form onSubmit={handleOperatorSubmit} className="space-y-4">
-                {/* Gate Selection */}
-                <div>
-                  <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                    Assigned Gate Booth
-                  </label>
-                  <select
-                    value={selectedGate}
-                    onChange={(e) => setSelectedGate(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-neutral-300 text-sm text-neutral-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 bg-white"
+              {/* MODE 1: OPERATOR SIGN IN */}
+              {operatorMode === 'signin' && (
+                <form onSubmit={handleOperatorSubmit} className="space-y-4">
+                  {/* Gate Selection */}
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                      Assigned Gate Booth
+                    </label>
+                    <select
+                      value={selectedGate}
+                      onChange={(e) => setSelectedGate(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-lg border border-neutral-300 text-sm text-neutral-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 bg-white"
+                    >
+                      <option value="Gate 1">Gate 1 (Main Entrance & Exit)</option>
+                      <option value="Gate 2">Gate 2 (North Express Gate)</option>
+                      <option value="Gate 3 (VIP)">Gate 3 (VIP & Monthly Pass)</option>
+                      <option value="Gate 4">Gate 4 (Commercial & Bus Entry)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                      Operator Email
+                    </label>
+                    <input
+                      type="email"
+                      value={operatorEmail}
+                      onChange={(e) => setOperatorEmail(e.target.value)}
+                      required
+                      placeholder="operator@parkpay.in"
+                      className="w-full px-3.5 py-2.5 rounded-lg border border-neutral-300 text-sm text-neutral-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      value={operatorPassword}
+                      onChange={(e) => setOperatorPassword(e.target.value)}
+                      required
+                      placeholder="••••••••••"
+                      className="w-full px-3.5 py-2.5 rounded-lg border border-neutral-300 text-sm text-neutral-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 bg-white"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-3 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-lg shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2 mt-2"
                   >
-                    <option value="Gate 1">Gate 1 (Main Entrance & Exit)</option>
-                    <option value="Gate 2">Gate 2 (North Express Gate)</option>
-                    <option value="Gate 3 (VIP)">Gate 3 (VIP & Monthly Pass)</option>
-                  </select>
-                </div>
+                    <Clock className="w-4 h-4" />
+                    <span>Start Shift & Sign In</span>
+                  </button>
 
-                <div>
-                  <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                    Operator Email
-                  </label>
-                  <input
-                    type="email"
-                    value={operatorEmail}
-                    onChange={(e) => setOperatorEmail(e.target.value)}
-                    required
-                    placeholder="operator@parkpay.in"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-neutral-300 text-sm text-neutral-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 bg-white"
-                  />
-                </div>
+                  <div className="relative my-3 flex items-center justify-center">
+                    <div className="border-t border-neutral-200 w-full"></div>
+                    <span className="bg-white px-3 text-[11px] text-neutral-400 font-medium uppercase tracking-wider absolute">
+                      or
+                    </span>
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    value={operatorPassword}
-                    onChange={(e) => setOperatorPassword(e.target.value)}
-                    required
-                    placeholder="••••••••••"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-neutral-300 text-sm text-neutral-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 bg-white"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-3 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-lg shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2 mt-2"
-                >
-                  <Clock className="w-4 h-4" />
-                  <span>Start Shift & Sign In</span>
-                </button>
-
-                <div className="relative my-3 flex items-center justify-center">
-                  <div className="border-t border-neutral-200 w-full"></div>
-                  <span className="bg-white px-3 text-[11px] text-neutral-400 font-medium uppercase tracking-wider absolute">
-                    or
-                  </span>
-                </div>
-
-                {/* Google Sign-In button */}
-                <button
-                  type="button"
-                  onClick={() => handleGoogleSignIn('operator')}
-                  className="w-full py-2.5 px-4 bg-white hover:bg-neutral-50 border border-neutral-300 rounded-lg shadow-2xs font-semibold text-xs text-neutral-800 flex items-center justify-center gap-2.5 transition-colors cursor-pointer"
-                >
-                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 48 48">
-                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                  </svg>
-                  <span>Sign in as Operator with Google</span>
-                </button>
-
-                <div className="pt-2 text-center">
+                  {/* Google Sign-In button */}
                   <button
                     type="button"
-                    onClick={() => {
-                      setPortal('admin');
-                      setError('');
-                    }}
-                    className="text-xs text-neutral-500 hover:text-neutral-900 transition-colors inline-flex items-center gap-1 cursor-pointer font-medium"
+                    onClick={() => handleGoogleSignIn('operator')}
+                    className="w-full py-2.5 px-4 bg-white hover:bg-neutral-50 border border-neutral-300 rounded-lg shadow-2xs font-semibold text-xs text-neutral-800 flex items-center justify-center gap-2.5 transition-colors cursor-pointer"
                   >
-                    <span>Parking Supervisor or Director?</span>
-                    <span className="text-amber-800 font-bold underline">Go to Admin Portal</span>
+                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 48 48">
+                      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                    </svg>
+                    <span>Sign in as Operator with Google</span>
                   </button>
-                </div>
-              </form>
+
+                  {/* Switch to Register callout */}
+                  <div className="pt-3 border-t border-neutral-100 flex flex-col items-center gap-1.5 text-center">
+                    <p className="text-xs text-neutral-500">
+                      Got a new employee joining the team?
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOperatorMode('register');
+                        setError('');
+                      }}
+                      className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline inline-flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>Register New Employee Account</span>
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* MODE 2: NEW EMPLOYEE REGISTRATION FORM */}
+              {operatorMode === 'register' && (
+                <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      value={regName}
+                      onChange={(e) => setRegName(e.target.value)}
+                      required
+                      placeholder="e.g. Rahul Verma"
+                      className="w-full px-3.5 py-2.5 rounded-lg border border-neutral-300 text-sm text-neutral-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                      Work Email
+                    </label>
+                    <input
+                      type="email"
+                      value={regEmail}
+                      onChange={(e) => setRegEmail(e.target.value)}
+                      required
+                      placeholder="e.g. rahul@parkpay.in"
+                      className="w-full px-3.5 py-2.5 rounded-lg border border-neutral-300 text-sm text-neutral-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                      Create Password / PIN
+                    </label>
+                    <input
+                      type="password"
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      required
+                      placeholder="••••••••"
+                      className="w-full px-3.5 py-2.5 rounded-lg border border-neutral-300 text-sm text-neutral-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                      Assigned Gate Booth
+                    </label>
+                    <select
+                      value={regGate}
+                      onChange={(e) => setRegGate(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-lg border border-neutral-300 text-sm text-neutral-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 bg-white"
+                    >
+                      <option value="Gate 1">Gate 1 (Main Entrance & Exit)</option>
+                      <option value="Gate 2">Gate 2 (North Express Gate)</option>
+                      <option value="Gate 3 (VIP)">Gate 3 (VIP & Monthly Pass)</option>
+                      <option value="Gate 4">Gate 4 (Commercial & Bus Entry)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                      Mobile Number <span className="text-neutral-400 font-normal">(Optional)</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={regPhone}
+                      onChange={(e) => setRegPhone(e.target.value)}
+                      placeholder="+91 98765 43210"
+                      className="w-full px-3.5 py-2.5 rounded-lg border border-neutral-300 text-sm text-neutral-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 bg-white"
+                    />
+                  </div>
+
+                  <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200/70 text-[11px] text-emerald-800 leading-relaxed">
+                    ✨ Registering will add you to the parking staff roster, automatically clock in your shift timer, and route you directly to the live Parking Log.
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-3 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-lg shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2 mt-2"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>Register & Start Shift</span>
+                  </button>
+
+                  <div className="pt-2 text-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOperatorMode('signin');
+                        setError('');
+                      }}
+                      className="text-xs text-neutral-500 hover:text-neutral-900 transition-colors inline-flex items-center gap-1 cursor-pointer font-medium"
+                    >
+                      <span>Already registered?</span>
+                      <span className="text-emerald-700 font-bold underline">Sign in to your shift</span>
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           )}
 

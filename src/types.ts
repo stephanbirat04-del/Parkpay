@@ -25,6 +25,7 @@ export interface VehicleRecord {
 
 export interface LotSettings {
   lotName: string;
+  totalCapacity?: number;
   hourlyRate: number;
   minimumCharge: number;
   gracePeriodMinutes: number;
@@ -40,6 +41,8 @@ export interface StaffUser {
   role: 'staff' | 'admin';
   title: string;
   gate: string;
+  phone?: string;
+  createdAt?: string;
 }
 
 export interface OperatorSession {

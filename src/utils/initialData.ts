@@ -21,6 +21,7 @@ export const INITIAL_STAFF: StaffUser[] = [
 
 export const INITIAL_SETTINGS: LotSettings = {
   lotName: 'Police Bazaar Parking · Gate 1',
+  totalCapacity: 60,
   hourlyRate: 50,
   minimumCharge: 30,
   gracePeriodMinutes: 10,
@@ -400,6 +401,35 @@ export const EXITS_BY_HOUR = [
   { hour: '16', exits: 12 },
   { hour: '18', exits: 9 },
   { hour: '20', exits: 6 },
+];
+
+export interface OccupancyDataPoint {
+  hour: string;
+  timeLabel: string;
+  occupied: number;
+  entries: number;
+  exits: number;
+  isPeak?: boolean;
+}
+
+export const HOURLY_OCCUPANCY_DATA: OccupancyDataPoint[] = [
+  { hour: '06', timeLabel: '06:00', occupied: 8, entries: 8, exits: 0 },
+  { hour: '07', timeLabel: '07:00', occupied: 14, entries: 9, exits: 3 },
+  { hour: '08', timeLabel: '08:00', occupied: 24, entries: 16, exits: 6 },
+  { hour: '09', timeLabel: '09:00', occupied: 36, entries: 20, exits: 8 },
+  { hour: '10', timeLabel: '10:00', occupied: 43, entries: 21, exits: 14 },
+  { hour: '11', timeLabel: '11:00', occupied: 47, entries: 20, exits: 16 },
+  { hour: '12', timeLabel: '12:00', occupied: 53, entries: 28, exits: 22, isPeak: true },
+  { hour: '13', timeLabel: '13:00', occupied: 57, entries: 23, exits: 19, isPeak: true },
+  { hour: '14', timeLabel: '14:00', occupied: 50, entries: 11, exits: 18 },
+  { hour: '15', timeLabel: '15:00', occupied: 44, entries: 9, exits: 15 },
+  { hour: '16', timeLabel: '16:00', occupied: 42, entries: 10, exits: 12 },
+  { hour: '17', timeLabel: '17:00', occupied: 49, entries: 19, exits: 12 },
+  { hour: '18', timeLabel: '18:00', occupied: 54, entries: 14, exits: 9, isPeak: true },
+  { hour: '19', timeLabel: '19:00', occupied: 46, entries: 8, exits: 16 },
+  { hour: '20', timeLabel: '20:00', occupied: 32, entries: 4, exits: 18 },
+  { hour: '21', timeLabel: '21:00', occupied: 19, entries: 2, exits: 15 },
+  { hour: '22', timeLabel: '22:00', occupied: 10, entries: 0, exits: 9 },
 ];
 
 export const INITIAL_OPERATOR_SESSIONS: OperatorSession[] = [
