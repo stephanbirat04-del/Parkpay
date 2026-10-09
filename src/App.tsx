@@ -528,8 +528,6 @@ export default function App() {
         {/* Top bar with Breadcrumbs and Live Synced Timestamp */}
         <TopBar
           currentView={currentView}
-          googleEmail={googleEmail}
-          onConnectGoogle={handleConnectGoogle}
           currentUser={currentUser}
           currentSession={currentSession}
           onOpenShiftDetails={() => setShiftModalMode('view')}
