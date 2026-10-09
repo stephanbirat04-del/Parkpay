@@ -119,10 +119,10 @@ export function HistoryView({
     });
   }, [safeVehicles, appliedFilters]);
 
-  // Merge current active session into sessions list if not already present
+  // Merge current active session into sessions list if not already present, ensuring only employee/staff shifts are shown
   const allSessions = useMemo(() => {
-    let list = [...safeSessions];
-    if (currentSession && !list.some((s) => s.id === currentSession.id)) {
+    let list = safeSessions.filter((s) => s.operatorRole !== 'admin');
+    if (currentSession && currentSession.operatorRole !== 'admin' && !list.some((s) => s.id === currentSession.id)) {
       list = [currentSession, ...list];
     }
     return list;

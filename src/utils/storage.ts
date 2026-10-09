@@ -7,6 +7,30 @@ const CURRENT_USER_KEY = 'parkpay_current_user_v1';
 const CURRENT_SESSION_KEY = 'parkpay_current_session_v1';
 const GATE_ACTIVITY_KEY = 'parkpay_gate_activity_v1';
 const OPERATOR_SESSIONS_KEY = 'parkpay_operator_sessions_v1';
+const STAFF_USERS_KEY = 'parkpay_staff_users_v1';
+
+export function loadStaffUsers(): StaffUser[] {
+  try {
+    const raw = localStorage.getItem(STAFF_USERS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {
+    console.error(e);
+  }
+  return INITIAL_STAFF;
+}
+
+export function saveStaffUsers(staff: StaffUser[]): void {
+  try {
+    if (Array.isArray(staff)) {
+      localStorage.setItem(STAFF_USERS_KEY, JSON.stringify(staff));
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
 
 export function loadSettings(): LotSettings {
   try {

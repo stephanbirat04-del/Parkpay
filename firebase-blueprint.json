@@ -163,6 +163,22 @@
         "notes": { "type": "string" }
       },
       "required": ["operatorName", "loginTime", "status"]
+    },
+    "staffUser": {
+      "title": "Staff User",
+      "description": "Registered parking lot employees and administrators with gate assignments.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 128 },
+        "role": { "type": "string", "enum": ["staff", "admin"] },
+        "title": { "type": "string", "maxLength": 128 },
+        "gate": { "type": "string", "maxLength": 64 },
+        "phone": { "type": "string", "maxLength": 32 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["name", "email", "role"]
     }
   },
   "firestore": {
@@ -181,6 +197,10 @@
     "/operator_sessions/{sessionId}": {
       "schema": "operatorSession",
       "description": "Historical and live operator shift login and logout times."
+    },
+    "/staff_users/{staffId}": {
+      "schema": "staffUser",
+      "description": "Registered employees and parking staff members."
     }
   }
 }

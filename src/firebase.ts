@@ -8,14 +8,15 @@ import {
   onSnapshot,
   setDoc,
   updateDoc,
+  deleteDoc,
   getDocs,
   query,
   orderBy,
   limit,
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
-import { VehicleRecord, LotSettings, GateActivityItem, OperatorSession } from './types';
-import { INITIAL_VEHICLES, INITIAL_GATE_ACTIVITY, INITIAL_SETTINGS, INITIAL_OPERATOR_SESSIONS } from './utils/initialData';
+import { VehicleRecord, LotSettings, GateActivityItem, OperatorSession, StaffUser } from './types';
+import { INITIAL_VEHICLES, INITIAL_GATE_ACTIVITY, INITIAL_SETTINGS, INITIAL_OPERATOR_SESSIONS, INITIAL_STAFF } from './utils/initialData';
 
 // Initialize Firebase App
 const app = initializeApp(firebaseConfig);
@@ -136,6 +137,14 @@ export async function seedFirestoreIfEmpty(): Promise<void> {
           logoutTime: s.logoutTime ?? null,
         };
         await setDoc(doc(db, 'operator_sessions', s.id), cleanData(safeSession));
+      }
+    }
+
+    // Seed staff users if empty
+    const staffSnap = await getDocs(collection(db, 'staff_users'));
+    if (staffSnap.empty) {
+      for (const st of INITIAL_STAFF) {
+        await setDoc(doc(db, 'staff_users', st.id), cleanData(st));
       }
     }
   } catch (error) {
@@ -354,5 +363,53 @@ export async function updateOperatorSessionInFirestore(session: OperatorSession)
     await setDoc(doc(db, 'operator_sessions', session.id), cleanData(safeSession), { merge: true });
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
+/**
+ * Real-time Staff Users Listener
+ */
+export function subscribeToStaffUsers(
+  onData: (staff: StaffUser[]) => void,
+  onError?: (err: Error) => void
+): () => void {
+  const path = 'staff_users';
+  const q = query(collection(db, path));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const staffList: StaffUser[] = [];
+      snapshot.forEach((d) => {
+        staffList.push({ ...(d.data() as StaffUser), id: d.id });
+      });
+      if (staffList.length > 0) {
+        onData(staffList);
+      }
+    },
+    (error) => {
+      try {
+        handleFirestoreError(error, OperationType.LIST, path);
+      } catch (e) {
+        if (onError && e instanceof Error) onError(e);
+      }
+    }
+  );
+}
+
+export async function createStaffUserInFirestore(staff: StaffUser): Promise<void> {
+  const path = `staff_users/${staff.id}`;
+  try {
+    await setDoc(doc(db, 'staff_users', staff.id), cleanData(staff));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, path);
+  }
+}
+
+export async function deleteStaffUserInFirestore(staffId: string): Promise<void> {
+  const path = `staff_users/${staffId}`;
+  try {
+    await deleteDoc(doc(db, 'staff_users', staffId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
