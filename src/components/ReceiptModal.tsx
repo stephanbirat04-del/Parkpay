@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { VehicleRecord, LotSettings } from '../types';
-import { Printer, X, Download, CheckCircle2, Mail, FileText, Check, AlertCircle } from 'lucide-react';
+import { Printer, X, Download, CheckCircle2, FileText, Check, AlertCircle } from 'lucide-react';
 import { formatDateIST, formatTimeIST } from '../utils/fee';
 import { ParkPayLogoMark } from './ParkPayLogo';
 import { jsPDF } from 'jspdf';
@@ -12,7 +12,7 @@ interface ReceiptModalProps {
   onEmailReceipt?: (vehicle: VehicleRecord) => void;
 }
 
-export function ReceiptModal({ vehicle, settings, onClose, onEmailReceipt }: ReceiptModalProps) {
+export function ReceiptModal({ vehicle, settings, onClose }: ReceiptModalProps) {
   const [printStatus, setPrintStatus] = useState<string | null>(null);
   const [statusType, setStatusType] = useState<'success' | 'info' | 'error'>('info');
 
@@ -571,17 +571,6 @@ Cashier: ${vehicle.loggedBy}
               <Download className="w-3.5 h-3.5" />
               <span>Text</span>
             </button>
-
-            {onEmailReceipt && (
-              <button
-                onClick={() => onEmailReceipt(vehicle)}
-                className="px-2.5 py-2 text-xs font-semibold text-neutral-800 hover:text-red-700 hover:bg-red-50 rounded-md border border-neutral-300 hover:border-red-300 flex items-center gap-1.5 transition-colors cursor-pointer bg-white"
-                title="Email receipt via Gmail"
-              >
-                <Mail className="w-3.5 h-3.5 text-red-600" />
-                <span>Gmail</span>
-              </button>
-            )}
           </div>
 
           <div className="flex items-center gap-2">
