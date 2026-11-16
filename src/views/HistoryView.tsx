@@ -9,7 +9,6 @@ import {
   Check,
   CheckCircle2,
   FileSpreadsheet,
-  Mail,
   Clock,
   LogOut,
   UserCheck,
@@ -34,7 +33,6 @@ export function HistoryView({
   currentSession,
   onPrintReceipt,
   onMarkPaid,
-  onEmailReceipt,
 }: HistoryViewProps) {
   // Safe normalized array references
   const safeVehicles = useMemo(
@@ -427,16 +425,6 @@ export function HistoryView({
                         </td>
                         <td className="py-3.5 px-4 text-right">
                           <div className="inline-flex items-center gap-1.5 justify-end">
-                            {onEmailReceipt && (
-                              <button
-                                onClick={() => onEmailReceipt(v)}
-                                title="Send receipt via Gmail"
-                                className="px-2 py-1 text-[11px] font-medium text-neutral-700 hover:text-red-700 hover:bg-red-50 rounded border border-neutral-200 hover:border-red-200 transition-colors cursor-pointer inline-flex items-center gap-1"
-                              >
-                                <Mail className="w-3 h-3 text-red-600" />
-                                <span>Email</span>
-                              </button>
-                            )}
                             <button
                               onClick={() => onPrintReceipt(v)}
                               className="px-2.5 py-1 text-[11px] font-medium text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100 rounded border border-neutral-200 transition-colors cursor-pointer inline-flex items-center gap-1"
