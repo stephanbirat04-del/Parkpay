@@ -175,7 +175,9 @@ export function ExitModal({ vehicle, settings, onConfirm, onClose }: ExitModalPr
               <div className="text-xs">
                 <div className="font-semibold text-neutral-900">Scan UPI to pay ₹{feeDetails.finalFee}</div>
                 <div className="text-[11px] text-neutral-500">BHIM / GPay / PhonePe / Paytm</div>
-                <div className="text-[10px] text-emerald-700 font-mono mt-0.5">parkpay.policebazaar@sbi</div>
+                {settings.upiId && (
+                  <div className="text-[10px] text-emerald-700 font-mono mt-0.5">{settings.upiId}</div>
+                )}
               </div>
             </div>
           )}

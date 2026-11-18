@@ -45,7 +45,7 @@ service cloud.firestore {
         && request.resource.data.action in ['entered', 'exited']
         && request.resource.data.plateNumber is string;
       allow update: if false;
-      allow delete: if false;
+      allow delete: if isValidId(activityId);
     }
 
     // Operator Sessions shift audit log

@@ -249,7 +249,7 @@ export function generateParkingReceiptHtml(
         </div>
 
         <p style="margin: 0; font-size: 11px; color: #9ca3af; text-align: center; line-height: 1.5;">
-          GSTIN: 17AAACP2026P1Z8 · Municipal Parking Bylaws Apply<br/>
+          ${lotSettings.taxId ? `GSTIN: ${lotSettings.taxId} · ` : ''}Official Digital Parking Receipt<br/>
           Thank you for parking with ParkPay. Keep this receipt for your records.
         </p>
       </div>

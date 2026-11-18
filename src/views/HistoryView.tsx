@@ -48,18 +48,18 @@ export function HistoryView({
   const [activeTab, setActiveTab] = useState<'vehicles' | 'shifts'>('vehicles');
 
   // Vehicle filters state
-  const [plateQuery, setPlateQuery] = useState('ML05');
+  const [plateQuery, setPlateQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | ParkingStatus>('all');
-  const [fromDate, setFromDate] = useState('2026-09-20');
-  const [toDate, setToDate] = useState('2026-09-23');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [exportNotification, setExportNotification] = useState<string | null>(null);
 
   // Filter application state
   const [appliedFilters, setAppliedFilters] = useState({
-    plateQuery: 'ML05',
+    plateQuery: '',
     statusFilter: 'all' as 'all' | ParkingStatus,
-    fromDate: '2026-09-20',
-    toDate: '2026-09-23',
+    fromDate: '',
+    toDate: '',
   });
 
   // Operator shift filter state
@@ -172,8 +172,19 @@ export function HistoryView({
 
   // Shift Stats
   const activeShiftsCount = allSessions.filter((s) => s.status === 'active').length;
-  const completedShiftsCount = allSessions.filter((s) => s.status === 'completed').length;
-  const lastCompletedShift = allSessions.find((s) => s.status === 'completed');
+  const completedShifts = allSessions.filter((s) => s.status === 'completed');
+  const completedShiftsCount = completedShifts.length;
+  const lastCompletedShift = completedShifts[0];
+  const shiftsWithDuration = completedShifts.filter(
+    (s) => typeof s.durationMinutes === 'number' && s.durationMinutes > 0
+  );
+  const avgShiftMinutes =
+    shiftsWithDuration.length > 0
+      ? Math.round(
+          shiftsWithDuration.reduce((sum, s) => sum + (s.durationMinutes || 0), 0) /
+            shiftsWithDuration.length
+        )
+      : null;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -280,7 +291,7 @@ export function HistoryView({
                     type="text"
                     value={plateQuery}
                     onChange={(e) => setPlateQuery(e.target.value.toUpperCase())}
-                    placeholder="e.g. ML05"
+                    placeholder="Search plate..."
                     className="w-full px-3 py-1.5 text-xs rounded-lg border border-neutral-300 font-mono font-medium focus:outline-hidden focus:ring-1 focus:ring-emerald-700 focus:border-emerald-700 bg-white"
                   />
                 </div>
@@ -481,10 +492,12 @@ export function HistoryView({
                 <Clock className="w-4 h-4 text-emerald-600" />
               </div>
               <div className="mt-2 text-2xl font-bold font-mono text-neutral-900">
-                8h 15m
+                {avgShiftMinutes !== null ? formatShiftDuration(avgShiftMinutes) : '—'}
               </div>
               <div className="text-[11px] text-neutral-500 mt-0.5">
-                Standard shift duty time
+                {completedShiftsCount > 0
+                  ? `Across ${completedShiftsCount} completed ${completedShiftsCount === 1 ? 'shift' : 'shifts'}`
+                  : 'No completed shifts yet'}
               </div>
             </div>
 
@@ -494,13 +507,17 @@ export function HistoryView({
                 <LogOut className="w-4 h-4 text-amber-600" />
               </div>
               <div className="mt-2 text-base font-bold font-mono text-neutral-900 truncate">
-                {lastCompletedShift?.logoutTime
-                  ? formatTimeIST(lastCompletedShift.logoutTime)
-                  : '17:00'}{' '}
-                <span className="text-xs font-sans text-neutral-500 font-normal">IST</span>
+                {lastCompletedShift?.logoutTime ? (
+                  <>
+                    {formatTimeIST(lastCompletedShift.logoutTime)}{' '}
+                    <span className="text-xs font-sans text-neutral-500 font-normal">IST</span>
+                  </>
+                ) : (
+                  '—'
+                )}
               </div>
               <div className="text-[11px] text-neutral-500 mt-0.5 truncate">
-                {lastCompletedShift?.operatorName || 'Ananya Sharma'}
+                {lastCompletedShift?.operatorName || 'No sign-outs recorded yet'}
               </div>
             </div>
           </div>
@@ -576,7 +593,9 @@ export function HistoryView({
                   {filteredShifts.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="py-12 text-center text-xs text-neutral-400">
-                        No operator shift records match &quot;{operatorSearch}&quot;.
+                        {operatorSearch.trim()
+                          ? `No operator shift records match "${operatorSearch}".`
+                          : 'No operator shift records logged yet.'}
                       </td>
                     </tr>
                   ) : (

@@ -1,25 +1,55 @@
 import { LotSettings, StaffUser, VehicleRecord, GateActivityItem, OperatorSession } from '../types';
-import { INITIAL_SETTINGS, INITIAL_STAFF, INITIAL_VEHICLES, INITIAL_GATE_ACTIVITY, INITIAL_OPERATOR_SESSIONS } from './initialData';
+import {
+  DEFAULT_SETTINGS,
+  LEGACY_DEMO_ACTIVITY_IDS,
+  LEGACY_DEMO_SESSION_IDS,
+  LEGACY_DEMO_STAFF_IDS,
+  LEGACY_DEMO_VEHICLE_IDS,
+} from './initialData';
 
-const SETTINGS_KEY = 'parkpay_settings_v1';
-const VEHICLES_KEY = 'parkpay_vehicles_v1';
-const CURRENT_USER_KEY = 'parkpay_current_user_v1';
-const CURRENT_SESSION_KEY = 'parkpay_current_session_v1';
-const GATE_ACTIVITY_KEY = 'parkpay_gate_activity_v1';
-const OPERATOR_SESSIONS_KEY = 'parkpay_operator_sessions_v1';
-const STAFF_USERS_KEY = 'parkpay_staff_users_v1';
+const SETTINGS_KEY = 'parkpay_settings_v2';
+const VEHICLES_KEY = 'parkpay_vehicles_v2';
+const CURRENT_USER_KEY = 'parkpay_current_user_v2';
+const CURRENT_SESSION_KEY = 'parkpay_current_session_v2';
+const GATE_ACTIVITY_KEY = 'parkpay_gate_activity_v2';
+const OPERATOR_SESSIONS_KEY = 'parkpay_operator_sessions_v2';
+const STAFF_USERS_KEY = 'parkpay_staff_users_v2';
+
+// Clear any legacy v1 cached demo keys on first load
+const LEGACY_KEYS = [
+  'parkpay_settings_v1',
+  'parkpay_vehicles_v1',
+  'parkpay_current_user_v1',
+  'parkpay_current_session_v1',
+  'parkpay_gate_activity_v1',
+  'parkpay_operator_sessions_v1',
+  'parkpay_staff_users_v1',
+];
+
+try {
+  LEGACY_KEYS.forEach((key) => localStorage.removeItem(key));
+} catch {
+  // Ignore storage errors in restricted contexts
+}
+
+const DEMO_VEHICLE_ID_SET = new Set(LEGACY_DEMO_VEHICLE_IDS);
+const DEMO_ACTIVITY_ID_SET = new Set(LEGACY_DEMO_ACTIVITY_IDS);
+const DEMO_SESSION_ID_SET = new Set(LEGACY_DEMO_SESSION_IDS);
+const DEMO_STAFF_ID_SET = new Set(LEGACY_DEMO_STAFF_IDS);
 
 export function loadStaffUsers(): StaffUser[] {
   try {
     const raw = localStorage.getItem(STAFF_USERS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) {
+        return parsed.filter((s: StaffUser) => !DEMO_STAFF_ID_SET.has(s.id));
+      }
     }
   } catch (e) {
     console.error(e);
   }
-  return INITIAL_STAFF;
+  return [];
 }
 
 export function saveStaffUsers(staff: StaffUser[]): void {
@@ -35,11 +65,21 @@ export function saveStaffUsers(staff: StaffUser[]): void {
 export function loadSettings(): LotSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        ...DEFAULT_SETTINGS,
+        ...parsed,
+        multipliers: {
+          ...DEFAULT_SETTINGS.multipliers,
+          ...(parsed.multipliers || {}),
+        },
+      };
+    }
   } catch (e) {
     console.error(e);
   }
-  return INITIAL_SETTINGS;
+  return DEFAULT_SETTINGS;
 }
 
 export function saveSettings(settings: LotSettings): void {
@@ -55,12 +95,14 @@ export function loadVehicles(): VehicleRecord[] {
     const raw = localStorage.getItem(VEHICLES_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) {
+        return parsed.filter((v: VehicleRecord) => !DEMO_VEHICLE_ID_SET.has(v.id));
+      }
     }
   } catch (e) {
     console.error(e);
   }
-  return INITIAL_VEHICLES;
+  return [];
 }
 
 export function saveVehicles(vehicles: VehicleRecord[]): void {
@@ -74,11 +116,15 @@ export function saveVehicles(vehicles: VehicleRecord[]): void {
 export function loadCurrentUser(): StaffUser | null {
   try {
     const raw = localStorage.getItem(CURRENT_USER_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw) as StaffUser;
+      if (parsed && !DEMO_STAFF_ID_SET.has(parsed.id)) {
+        return parsed;
+      }
+    }
   } catch (e) {
     console.error(e);
   }
-  // Start on the Login page by default so the user can experience the login flow
   return null;
 }
 
@@ -97,11 +143,16 @@ export function saveCurrentUser(user: StaffUser | null): void {
 export function loadGateActivity(): GateActivityItem[] {
   try {
     const raw = localStorage.getItem(GATE_ACTIVITY_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((a: GateActivityItem) => !DEMO_ACTIVITY_ID_SET.has(a.id));
+      }
+    }
   } catch (e) {
     console.error(e);
   }
-  return INITIAL_GATE_ACTIVITY;
+  return [];
 }
 
 export function saveGateActivity(activity: GateActivityItem[]): void {
@@ -117,12 +168,14 @@ export function loadOperatorSessions(): OperatorSession[] {
     const raw = localStorage.getItem(OPERATOR_SESSIONS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) {
+        return parsed.filter((s: OperatorSession) => !DEMO_SESSION_ID_SET.has(s.id));
+      }
     }
   } catch (e) {
     console.error(e);
   }
-  return INITIAL_OPERATOR_SESSIONS;
+  return [];
 }
 
 export function saveOperatorSessions(sessions: OperatorSession[]): void {
@@ -138,7 +191,12 @@ export function saveOperatorSessions(sessions: OperatorSession[]): void {
 export function loadCurrentSession(): OperatorSession | null {
   try {
     const raw = localStorage.getItem(CURRENT_SESSION_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw) as OperatorSession;
+      if (parsed && !DEMO_SESSION_ID_SET.has(parsed.id)) {
+        return parsed;
+      }
+    }
   } catch (e) {
     console.error(e);
   }
@@ -170,10 +228,10 @@ export function exportOperatorSessionsToCSV(sessions: OperatorSession[]): void {
     'Shift Duration (min)',
     'Status',
     'Vehicles Processed',
-    'Notes'
+    'Notes',
   ];
 
-  const rows = safeList.map(s => [
+  const rows = safeList.map((s) => [
     `"${s.id}"`,
     `"${s.operatorName}"`,
     `"${s.operatorEmail}"`,
@@ -184,10 +242,10 @@ export function exportOperatorSessionsToCSV(sessions: OperatorSession[]): void {
     `"${s.durationMinutes ?? ''}"`,
     `"${s.status}"`,
     `"${s.vehiclesProcessed ?? 0}"`,
-    `"${s.notes || ''}"`
+    `"${s.notes || ''}"`,
   ]);
 
-  const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -214,10 +272,10 @@ export function exportVehiclesToCSV(vehicles: VehicleRecord[]): void {
     'Payment Status',
     'Payment Method',
     'Receipt Number',
-    'Logged By Staff'
+    'Logged By Staff',
   ];
 
-  const rows = safeList.map(v => [
+  const rows = safeList.map((v) => [
     `"${v.plateNumber}"`,
     `"${v.vehicleType}"`,
     `"${v.ownerPhone || 'N/A'}"`,
@@ -229,10 +287,10 @@ export function exportVehiclesToCSV(vehicles: VehicleRecord[]): void {
     `"${v.paymentStatus}"`,
     `"${v.paymentMethod || 'N/A'}"`,
     `"${v.receiptNumber || 'N/A'}"`,
-    `"${v.loggedBy}"`
+    `"${v.loggedBy}"`,
   ]);
 
-  const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');

@@ -3,20 +3,25 @@ import { getAuth } from 'firebase/auth';
 import {
   getFirestore,
   doc,
+  getDoc,
   getDocFromServer,
   collection,
   onSnapshot,
   setDoc,
-  updateDoc,
   deleteDoc,
-  getDocs,
   query,
   orderBy,
   limit,
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 import { VehicleRecord, LotSettings, GateActivityItem, OperatorSession, StaffUser } from './types';
-import { INITIAL_VEHICLES, INITIAL_GATE_ACTIVITY, INITIAL_SETTINGS, INITIAL_OPERATOR_SESSIONS, INITIAL_STAFF } from './utils/initialData';
+import {
+  DEFAULT_SETTINGS,
+  LEGACY_DEMO_ACTIVITY_IDS,
+  LEGACY_DEMO_SESSION_IDS,
+  LEGACY_DEMO_STAFF_IDS,
+  LEGACY_DEMO_VEHICLE_IDS,
+} from './utils/initialData';
 
 // Initialize Firebase App
 const app = initializeApp(firebaseConfig);
@@ -28,6 +33,12 @@ export const FIRESTORE_DATABASE_ID =
 
 export const db = getFirestore(app, FIRESTORE_DATABASE_ID);
 export const auth = getAuth(app);
+
+const DEMO_VEHICLE_ID_SET = new Set(LEGACY_DEMO_VEHICLE_IDS);
+const DEMO_ACTIVITY_ID_SET = new Set(LEGACY_DEMO_ACTIVITY_IDS);
+const DEMO_SESSION_ID_SET = new Set(LEGACY_DEMO_SESSION_IDS);
+const DEMO_STAFF_ID_SET = new Set(LEGACY_DEMO_STAFF_IDS);
+const DEMO_CLEANUP_FLAG_KEY = 'parkpay_demo_cleanup_v2';
 
 // Connection test on boot per Skill requirement
 export async function testConnection(): Promise<boolean> {
@@ -99,56 +110,43 @@ export function handleFirestoreError(
 }
 
 /**
- * Seed initial parking data if Firestore collections are empty
+ * Purge any legacy hardcoded demo documents once from Firestore and ensure
+ * clean neutral settings exist without seeding any fake data.
  */
-export async function seedFirestoreIfEmpty(): Promise<void> {
+export async function initializeLiveFirestore(): Promise<void> {
   try {
-    // Seed vehicles if empty
-    const vehiclesSnap = await getDocs(collection(db, 'vehicles'));
-    if (vehiclesSnap.empty) {
-      for (const v of INITIAL_VEHICLES) {
-        await setDoc(doc(db, 'vehicles', v.id), cleanData(v));
+    const settingsRef = doc(db, 'settings', 'current');
+    const settingsSnap = await getDoc(settingsRef);
+    if (!settingsSnap.exists()) {
+      await setDoc(settingsRef, cleanData(DEFAULT_SETTINGS));
+    } else {
+      const existingSettings = settingsSnap.data() as Partial<LotSettings>;
+      if (
+        existingSettings.lotName === 'Police Bazaar Parking · Gate 1' &&
+        existingSettings.lastUpdatedBy === 'R. Kharkongor'
+      ) {
+        await setDoc(settingsRef, cleanData(DEFAULT_SETTINGS));
       }
     }
 
-    // Seed settings if empty
-    const settingsSnap = await getDocs(collection(db, 'settings'));
-    if (settingsSnap.empty) {
-      await setDoc(doc(db, 'settings', 'current'), cleanData(INITIAL_SETTINGS));
-    }
+    const alreadyCleaned =
+      typeof localStorage !== 'undefined' &&
+      localStorage.getItem(DEMO_CLEANUP_FLAG_KEY) === 'done';
 
-    // Seed gate activities if empty
-    const gateSnap = await getDocs(collection(db, 'gate_activities'));
-    if (gateSnap.empty) {
-      for (const a of INITIAL_GATE_ACTIVITY) {
-        await setDoc(doc(db, 'gate_activities', a.id), cleanData(a));
-      }
-    }
-
-    // Seed operator shifts / sessions if empty
-    const sessionsSnap = await getDocs(collection(db, 'operator_sessions'));
-    if (sessionsSnap.empty) {
-      for (const s of INITIAL_OPERATOR_SESSIONS) {
-        const safeSession = {
-          ...s,
-          notes: s.notes ?? '',
-          vehiclesProcessed: s.vehiclesProcessed ?? 0,
-          durationMinutes: s.durationMinutes ?? 0,
-          logoutTime: s.logoutTime ?? null,
-        };
-        await setDoc(doc(db, 'operator_sessions', s.id), cleanData(safeSession));
-      }
-    }
-
-    // Seed staff users if empty
-    const staffSnap = await getDocs(collection(db, 'staff_users'));
-    if (staffSnap.empty) {
-      for (const st of INITIAL_STAFF) {
-        await setDoc(doc(db, 'staff_users', st.id), cleanData(st));
+    if (!alreadyCleaned) {
+      const deletions: Promise<void>[] = [
+        ...LEGACY_DEMO_VEHICLE_IDS.map((id) => deleteDoc(doc(db, 'vehicles', id))),
+        ...LEGACY_DEMO_ACTIVITY_IDS.map((id) => deleteDoc(doc(db, 'gate_activities', id))),
+        ...LEGACY_DEMO_SESSION_IDS.map((id) => deleteDoc(doc(db, 'operator_sessions', id))),
+        ...LEGACY_DEMO_STAFF_IDS.map((id) => deleteDoc(doc(db, 'staff_users', id))),
+      ];
+      await Promise.allSettled(deletions);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(DEMO_CLEANUP_FLAG_KEY, 'done');
       }
     }
   } catch (error) {
-    console.warn('Initial seeding fallback check:', error);
+    console.warn('Live Firestore initialization notice:', error);
   }
 }
 
@@ -166,7 +164,9 @@ export function subscribeToVehicles(
     (snapshot) => {
       const records: VehicleRecord[] = [];
       snapshot.forEach((d) => {
-        records.push({ ...(d.data() as VehicleRecord), id: d.id });
+        if (!DEMO_VEHICLE_ID_SET.has(d.id)) {
+          records.push({ ...(d.data() as VehicleRecord), id: d.id });
+        }
       });
       // Sort newest entry first
       records.sort(
@@ -196,7 +196,15 @@ export function subscribeToSettings(
     doc(db, path, 'current'),
     (snap) => {
       if (snap.exists()) {
-        onData(snap.data() as LotSettings);
+        const data = snap.data() as Partial<LotSettings>;
+        onData({
+          ...DEFAULT_SETTINGS,
+          ...data,
+          multipliers: {
+            ...DEFAULT_SETTINGS.multipliers,
+            ...(data.multipliers || {}),
+          },
+        });
       }
     },
     (error) => {
@@ -217,13 +225,15 @@ export function subscribeToGateActivities(
   onError?: (err: Error) => void
 ): () => void {
   const path = 'gate_activities';
-  const q = query(collection(db, path), limit(30));
+  const q = query(collection(db, path), orderBy('timestamp', 'desc'), limit(50));
   return onSnapshot(
     q,
     (snapshot) => {
       const items: GateActivityItem[] = [];
       snapshot.forEach((d) => {
-        items.push({ ...(d.data() as GateActivityItem), id: d.id });
+        if (!DEMO_ACTIVITY_ID_SET.has(d.id)) {
+          items.push({ ...(d.data() as GateActivityItem), id: d.id });
+        }
       });
       items.sort(
         (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
@@ -310,13 +320,15 @@ export function subscribeToOperatorSessions(
   onError?: (err: Error) => void
 ): () => void {
   const path = 'operator_sessions';
-  const q = query(collection(db, path), limit(50));
+  const q = query(collection(db, path), orderBy('loginTime', 'desc'), limit(100));
   return onSnapshot(
     q,
     (snapshot) => {
       const sessions: OperatorSession[] = [];
       snapshot.forEach((d) => {
-        sessions.push({ ...(d.data() as OperatorSession), id: d.id });
+        if (!DEMO_SESSION_ID_SET.has(d.id)) {
+          sessions.push({ ...(d.data() as OperatorSession), id: d.id });
+        }
       });
       // Sort newest login first
       sessions.sort(
@@ -380,11 +392,11 @@ export function subscribeToStaffUsers(
     (snapshot) => {
       const staffList: StaffUser[] = [];
       snapshot.forEach((d) => {
-        staffList.push({ ...(d.data() as StaffUser), id: d.id });
+        if (!DEMO_STAFF_ID_SET.has(d.id)) {
+          staffList.push({ ...(d.data() as StaffUser), id: d.id });
+        }
       });
-      if (staffList.length > 0) {
-        onData(staffList);
-      }
+      onData(staffList);
     },
     (error) => {
       try {

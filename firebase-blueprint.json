@@ -107,6 +107,24 @@
           "type": "string",
           "description": "Display timestamp of latest modification.",
           "maxLength": 128
+        },
+        "totalCapacity": {
+          "type": "number",
+          "description": "Maximum number of parking spots in the lot."
+        },
+        "upiId": {
+          "type": "string",
+          "description": "Optional UPI VPA handle for exit QR payments.",
+          "maxLength": 128
+        },
+        "taxId": {
+          "type": "string",
+          "description": "Optional GSTIN or tax registration number printed on receipts.",
+          "maxLength": 64
+        },
+        "multipliers": {
+          "type": "object",
+          "description": "Rate multipliers per vehicle type."
         }
       },
       "required": ["lotName", "hourlyRate", "minimumCharge", "gracePeriodMinutes"]
@@ -176,6 +194,7 @@
         "title": { "type": "string", "maxLength": 128 },
         "gate": { "type": "string", "maxLength": 64 },
         "phone": { "type": "string", "maxLength": 32 },
+        "pin": { "type": "string", "maxLength": 64 },
         "createdAt": { "type": "string" }
       },
       "required": ["name", "email", "role"]

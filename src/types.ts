@@ -31,6 +31,8 @@ export interface LotSettings {
   gracePeriodMinutes: number;
   lastUpdatedBy: string;
   lastUpdatedAt: string;
+  upiId?: string;
+  taxId?: string;
   multipliers: Record<VehicleType, number>;
 }
 
@@ -42,6 +44,7 @@ export interface StaffUser {
   title: string;
   gate: string;
   phone?: string;
+  pin?: string;
   createdAt?: string;
 }
 

@@ -18,9 +18,17 @@ export function ReceiptModal({ vehicle, settings, onClose }: ReceiptModalProps) 
 
   if (!vehicle) return null;
 
-  const durationFormatted = vehicle.durationMinutes
-    ? `${Math.floor(vehicle.durationMinutes / 60)}h ${vehicle.durationMinutes % 60}m`
-    : '1h 48m';
+  const computedMinutes =
+    vehicle.durationMinutes ??
+    Math.max(
+      1,
+      Math.round(
+        (new Date(vehicle.exitTime || new Date()).getTime() -
+          new Date(vehicle.entryTime).getTime()) /
+          60000
+      )
+    );
+  const durationFormatted = `${Math.floor(computedMinutes / 60)}h ${computedMinutes % 60}m`;
   const exitTimeFormatted = vehicle.exitTime ? formatTimeIST(vehicle.exitTime) : formatTimeIST(new Date());
 
   const generatePDF = () => {
@@ -46,10 +54,12 @@ export function ReceiptModal({ vehicle, settings, onClose }: ReceiptModalProps) 
     doc.text(settings.lotName, width / 2, y, { align: 'center' });
     y += 4;
 
-    doc.setFontSize(7);
-    doc.setTextColor(120, 120, 120);
-    doc.text('GSTIN / TAX: 17AABCP1234F1Z8', width / 2, y, { align: 'center' });
-    y += 4;
+    if (settings.taxId) {
+      doc.setFontSize(7);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`GSTIN / TAX: ${settings.taxId}`, width / 2, y, { align: 'center' });
+      y += 4;
+    }
 
     // Dashed separator
     doc.setLineDashPattern([1, 1], 0);
@@ -62,7 +72,7 @@ export function ReceiptModal({ vehicle, settings, onClose }: ReceiptModalProps) 
     doc.setFontSize(7.5);
     doc.text('Receipt No:', 8, y);
     doc.setFont('helvetica', 'bold');
-    doc.text(vehicle.receiptNumber || 'PP-240923-087', width - 8, y, { align: 'right' });
+    doc.text(vehicle.receiptNumber || 'PENDING', width - 8, y, { align: 'right' });
     y += 4.5;
 
     doc.setFont('helvetica', 'normal');
@@ -244,14 +254,14 @@ export function ReceiptModal({ vehicle, settings, onClose }: ReceiptModalProps) 
   <div class="text-center">
     <div class="title">PARKPAY GATE PASS</div>
     <div class="subtitle">${settings.lotName}</div>
-    <div class="subtitle" style="font-size: 8px;">GSTIN / TAX: 17AABCP1234F1Z8</div>
+    ${settings.taxId ? `<div class="subtitle" style="font-size: 8px;">GSTIN / TAX: ${settings.taxId}</div>` : ''}
   </div>
 
   <div class="divider"></div>
 
   <div class="row">
     <span>Receipt No:</span>
-    <span class="bold">${vehicle.receiptNumber || 'PP-240923-087'}</span>
+    <span class="bold">${vehicle.receiptNumber || 'PENDING'}</span>
   </div>
   <div class="row">
     <span>Date:</span>
@@ -387,7 +397,7 @@ export function ReceiptModal({ vehicle, settings, onClose }: ReceiptModalProps) 
            PARKPAY PARKING RECEIPT
 ========================================
 Lot: ${settings.lotName}
-Receipt No: ${vehicle.receiptNumber || 'PP-240923-087'}
+Receipt No: ${vehicle.receiptNumber || 'PENDING'}
 Date: ${formatDateIST(vehicle.exitTime || new Date())}
 Plate No: ${vehicle.plateNumber}
 Vehicle Type: ${vehicle.vehicleType}
@@ -466,14 +476,16 @@ Cashier: ${vehicle.loggedBy}
               </div>
               <div className="font-bold text-sm text-neutral-900 tracking-wider">PARKPAY GATE PASS</div>
               <div className="text-[11px] font-sans text-neutral-600 font-medium">{settings.lotName}</div>
-              <div className="text-[10px] text-neutral-400">GSTIN / TAX: 17AABCP1234F1Z8</div>
+              {settings.taxId && (
+                <div className="text-[10px] text-neutral-400">GSTIN / TAX: {settings.taxId}</div>
+              )}
             </div>
 
             {/* Receipt metadata */}
             <div className="text-[11px] space-y-1 pt-1">
               <div className="flex justify-between">
                 <span className="text-neutral-500">Receipt No:</span>
-                <span className="font-bold text-neutral-900">{vehicle.receiptNumber || 'PP-240923-087'}</span>
+                <span className="font-bold text-neutral-900">{vehicle.receiptNumber || 'PENDING'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-neutral-500">Date:</span>

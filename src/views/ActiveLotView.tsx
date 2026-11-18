@@ -26,7 +26,7 @@ export function ActiveLotView({
 }: ActiveLotViewProps) {
   // Form state
   const [plateNumber, setPlateNumber] = useState('');
-  const [ownerPhone, setOwnerPhone] = useState('+91 ');
+  const [ownerPhone, setOwnerPhone] = useState('');
   const [vehicleType, setVehicleType] = useState<VehicleType>('Car');
   const [formError, setFormError] = useState('');
 
@@ -72,11 +72,11 @@ export function ActiveLotView({
       return;
     }
 
-    onLogEntry(cleanedPlate, ownerPhone.trim() === '+91' ? '' : ownerPhone.trim(), vehicleType);
+    onLogEntry(cleanedPlate, ownerPhone.trim(), vehicleType);
 
     // Reset form
     setPlateNumber('');
-    setOwnerPhone('+91 ');
+    setOwnerPhone('');
   };
 
   const calculateElapsed = (entryTimeStr: string) => {
@@ -127,28 +127,14 @@ export function ActiveLotView({
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* License Plate */}
             <div>
-              <div className="flex justify-between items-center mb-1.5">
-                <label className="block text-xs font-semibold text-neutral-700">
-                  License plate
-                </label>
-                <div className="flex gap-1">
-                  {['ML05AB9012', 'AS01CD7844', 'TR01F3319'].map((sample) => (
-                    <button
-                      key={sample}
-                      type="button"
-                      onClick={() => setPlateNumber(sample)}
-                      className="text-[10px] px-1.5 py-0.5 bg-neutral-100 hover:bg-neutral-200 rounded text-neutral-600 font-mono transition-colors cursor-pointer"
-                    >
-                      {sample.slice(0, 6)}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                License plate
+              </label>
               <input
                 type="text"
                 value={plateNumber}
                 onChange={(e) => setPlateNumber(e.target.value.toUpperCase())}
-                placeholder="ML05AB1234"
+                placeholder="Enter license plate (e.g. KA01AB1234)"
                 className="w-full px-4 py-3 rounded-lg border border-neutral-300 text-base font-mono font-bold uppercase tracking-wider text-neutral-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 bg-white placeholder:font-sans placeholder:font-normal placeholder:tracking-normal placeholder:text-neutral-400"
                 required
               />
@@ -163,7 +149,7 @@ export function ActiveLotView({
                 type="tel"
                 value={ownerPhone}
                 onChange={(e) => setOwnerPhone(e.target.value)}
-                placeholder="+91 98630 45192"
+                placeholder="e.g. +91 98765 43210"
                 className="w-full px-3.5 py-2.5 rounded-lg border border-neutral-300 text-sm font-mono text-neutral-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 bg-white placeholder:text-neutral-400"
               />
               <span className="text-[11px] text-neutral-400 mt-1 block">
@@ -181,11 +167,15 @@ export function ActiveLotView({
                 onChange={(e) => setVehicleType(e.target.value as VehicleType)}
                 className="w-full px-3.5 py-2.5 rounded-lg border border-neutral-300 text-sm font-medium text-neutral-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 bg-white"
               >
-                <option value="Car">Car (Standard rate ₹{settings.hourlyRate}/hr)</option>
-                <option value="SUV">SUV (1.2x rate ₹{Math.round(settings.hourlyRate * 1.2)}/hr)</option>
-                <option value="Motorcycle">Motorcycle (0.5x rate ₹{Math.round(settings.hourlyRate * 0.5)}/hr)</option>
-                <option value="Bus">Bus (2.0x rate ₹{Math.round(settings.hourlyRate * 2.0)}/hr)</option>
-                <option value="Truck">Truck (2.0x rate ₹{Math.round(settings.hourlyRate * 2.0)}/hr)</option>
+                {(['Car', 'SUV', 'Motorcycle', 'Bus', 'Truck'] as VehicleType[]).map((t) => {
+                  const mult = settings.multipliers[t] ?? 1;
+                  const hourly = Math.round(settings.hourlyRate * mult);
+                  return (
+                    <option key={t} value={t}>
+                      {t} ({mult === 1 ? 'Standard' : `${mult}x`} rate ₹{hourly}/hr)
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -212,6 +202,9 @@ export function ActiveLotView({
                 <span className="text-neutral-400">·</span>
                 <span className="text-base font-bold font-mono text-emerald-800 tabular-nums">
                   {activeVehicles.length}
+                </span>
+                <span className="text-xs font-mono text-neutral-400">
+                  / {settings.totalCapacity || 60}
                 </span>
               </div>
 
@@ -249,7 +242,11 @@ export function ActiveLotView({
             <div className="space-y-2.5 mt-1 max-h-[460px] overflow-y-auto pr-1">
               {filteredVehicles.length === 0 ? (
                 <div className="py-12 text-center text-xs text-neutral-400">
-                  No parked vehicles found matching &quot;{searchQuery}&quot;.
+                  {searchQuery.trim()
+                    ? `No parked vehicles found matching "${searchQuery}".`
+                    : typeFilter !== 'All'
+                    ? `No parked ${typeFilter} vehicles in the lot right now.`
+                    : 'No vehicles currently parked. Use the entry form to log a vehicle.'}
                 </div>
               ) : (
                 filteredVehicles.map((veh) => {
@@ -303,7 +300,7 @@ export function ActiveLotView({
             </span>
             <span className="text-neutral-400">·</span>
             <span className="text-neutral-500 font-mono">
-              Receipt #{recentExitVehicle.receiptNumber || 'PP-240923-087'}
+              Receipt #{recentExitVehicle.receiptNumber || 'Pending'}
             </span>
           </div>
 

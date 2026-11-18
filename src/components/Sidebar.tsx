@@ -43,7 +43,7 @@ export function Sidebar({
 
   const loginTimeFormatted = currentSession?.loginTime
     ? formatTimeIST(currentSession.loginTime)
-    : '08:30';
+    : '—';
 
   const navItems: { id: 'dashboard' | 'active' | 'history' | 'settings'; label: string; icon: typeof LayoutDashboard; adminOnly?: boolean }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },

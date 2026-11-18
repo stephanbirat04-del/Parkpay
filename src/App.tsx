@@ -25,10 +25,9 @@ import {
   loadStaffUsers,
   saveStaffUsers,
 } from './utils/storage';
-import { INITIAL_STAFF } from './utils/initialData';
 import { calculateFee, generateReceiptNumber, formatTimeIST } from './utils/fee';
 import {
-  seedFirestoreIfEmpty,
+  initializeLiveFirestore,
   subscribeToVehicles,
   subscribeToSettings,
   subscribeToGateActivities,
@@ -50,8 +49,6 @@ import { ExitModal } from './components/ExitModal';
 import { ReceiptModal } from './components/ReceiptModal';
 import { GmailEmailModal } from './components/GmailEmailModal';
 import { ShiftSummaryModal } from './components/ShiftSummaryModal';
-import { signInWithGoogle, getAccessToken } from './services/gmail';
-import { auth } from './firebase';
 
 import { LoginView } from './views/LoginView';
 import { DashboardView } from './views/DashboardView';
@@ -88,55 +85,22 @@ export default function App() {
   const [vehicleToExit, setVehicleToExit] = useState<VehicleRecord | null>(null);
   const [receiptVehicle, setReceiptVehicle] = useState<VehicleRecord | null>(null);
   const [emailVehicle, setEmailVehicle] = useState<VehicleRecord | null>(null);
-  const [googleEmail, setGoogleEmail] = useState<string | null>(() => auth.currentUser?.email || null);
-  
-  // Recent exit banner vehicle (matching screenshot 3)
+
+  // Recent exit banner vehicle
   const [recentExitVehicle, setRecentExitVehicle] = useState<VehicleRecord | null>(() => {
     const exited = loadVehicles().filter((v) => v.status === 'Exited');
     return exited.length > 0 ? exited[0] : null;
   });
 
-  // Check Google auth state on mount
-  useEffect(() => {
-    getAccessToken().then((token) => {
-      if (token && auth.currentUser) {
-        setGoogleEmail(auth.currentUser.email);
-      }
-    });
-  }, []);
-
-  const handleConnectGoogle = async () => {
-    try {
-      const result = await signInWithGoogle();
-      if (result.user) {
-        setGoogleEmail(result.user.email);
-      }
-    } catch (err: any) {
-      const isCancelled =
-        err?.code === 'auth/popup-closed-by-user' ||
-        err?.code === 'auth/cancelled-popup-request' ||
-        String(err?.message || '').includes('popup-closed-by-user') ||
-        String(err?.message || '').includes('cancelled-popup-request');
-
-      if (!isCancelled) {
-        console.warn('Failed to connect Google account:', err);
-      }
-    }
-  };
-
   // Sync with Firestore in real-time
   useEffect(() => {
-    // Seed initial data if Firestore is empty
-    seedFirestoreIfEmpty();
+    initializeLiveFirestore();
 
-    // Subscribe to Firestore collections
     const unsubVehicles = subscribeToVehicles((firestoreVehicles) => {
-      if (firestoreVehicles.length > 0) {
-        setVehicles(firestoreVehicles);
-        saveVehicles(firestoreVehicles);
-        const latestExit = firestoreVehicles.find((v) => v.status === 'Exited');
-        if (latestExit) setRecentExitVehicle(latestExit);
-      }
+      setVehicles(firestoreVehicles);
+      saveVehicles(firestoreVehicles);
+      const latestExit = firestoreVehicles.find((v) => v.status === 'Exited') || null;
+      setRecentExitVehicle(latestExit);
     });
 
     const unsubSettings = subscribeToSettings((firestoreSettings) => {
@@ -145,24 +109,20 @@ export default function App() {
     });
 
     const unsubActivity = subscribeToGateActivities((firestoreActivity) => {
-      if (firestoreActivity.length > 0) {
-        setGateActivity(firestoreActivity);
-        saveGateActivity(firestoreActivity);
-      }
+      setGateActivity(firestoreActivity);
+      saveGateActivity(firestoreActivity);
     });
 
     const unsubSessions = subscribeToOperatorSessions((firestoreSessions) => {
-      if (Array.isArray(firestoreSessions) && firestoreSessions.length > 0) {
-        setOperatorSessions(firestoreSessions);
-        saveOperatorSessions(firestoreSessions);
-      }
+      setOperatorSessions(firestoreSessions);
+      saveOperatorSessions(firestoreSessions);
+      const completed = firestoreSessions.find((s) => s.status === 'completed') || null;
+      setLastSession(completed);
     });
 
     const unsubStaff = subscribeToStaffUsers((firestoreStaff) => {
-      if (Array.isArray(firestoreStaff) && firestoreStaff.length > 0) {
-        setStaffList(firestoreStaff);
-        saveStaffUsers(firestoreStaff);
-      }
+      setStaffList(firestoreStaff);
+      saveStaffUsers(firestoreStaff);
     });
 
     return () => {
@@ -235,19 +195,16 @@ export default function App() {
 
   const handleSignOut = () => {
     if (currentUser?.role === 'admin') {
-      // Admin signs out directly without shift timing recording
       setCurrentSession(null);
       saveCurrentSession(null);
       setCurrentUser(null);
       saveCurrentUser(null);
       return;
     }
-    // For employee/staff, open the Shift Summary & Logout modal to verify shift timings
     setShiftModalMode('end-shift');
   };
 
   const handleConfirmSignOut = async (notes?: string) => {
-    // If admin, no shift to record
     if (currentUser?.role === 'admin') {
       setCurrentSession(null);
       saveCurrentSession(null);
@@ -265,9 +222,9 @@ export default function App() {
     const completedSession: OperatorSession = {
       ...(currentSession || {
         id: `sess-${Date.now()}`,
-        operatorId: currentUser?.id || 'staff-1',
-        operatorName: currentUser?.name || 'Gate Operator',
-        operatorEmail: currentUser?.email || 'operator@parkpay.in',
+        operatorId: currentUser?.id || `staff-${Date.now()}`,
+        operatorName: currentUser?.name || 'Operator',
+        operatorEmail: currentUser?.email || '',
         operatorRole: 'staff',
         gate: currentUser?.gate || 'Gate 1',
         loginTime: loginTimeIso,
@@ -316,7 +273,7 @@ export default function App() {
       fee: 0,
       status: 'Parked',
       paymentStatus: 'Unpaid',
-      loggedBy: currentUser ? currentUser.name : 'Ananya Sharma',
+      loggedBy: currentUser ? currentUser.name : 'Gate Operator',
       rateAppliedAtEntry: settings.hourlyRate,
       graceMinutesAtEntry: settings.gracePeriodMinutes,
       minimumChargeAtEntry: settings.minimumCharge,
@@ -499,7 +456,7 @@ export default function App() {
     }
   };
 
-  // If unauthenticated, show Staff sign-in view matching Screen 1
+  // If unauthenticated, show Staff sign-in view
   if (!currentUser) {
     return (
       <LoginView
@@ -507,6 +464,7 @@ export default function App() {
         onRegisterStaff={handleRegisterStaff}
         staffList={staffList}
         lastSession={lastSession}
+        lotName={settings.lotName}
       />
     );
   }
@@ -539,6 +497,8 @@ export default function App() {
             <DashboardView
               vehicles={vehicles}
               gateActivity={gateActivity}
+              operatorSessions={operatorSessions}
+              settings={settings}
               currentUser={currentUser}
               onNavigateToActive={() => setCurrentView('active')}
             />
@@ -583,6 +543,9 @@ export default function App() {
             <DashboardView
               vehicles={vehicles}
               gateActivity={gateActivity}
+              operatorSessions={operatorSessions}
+              settings={settings}
+              currentUser={currentUser}
               onNavigateToActive={() => setCurrentView('active')}
             />
           )}
