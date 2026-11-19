@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import {
   VehicleRecord,
   VehicleType,
@@ -594,6 +595,9 @@ export default function App() {
           mode={shiftModalMode}
         />
       )}
+
+      {/* Vercel Web Analytics */}
+      <Analytics />
     </div>
   );
 }
